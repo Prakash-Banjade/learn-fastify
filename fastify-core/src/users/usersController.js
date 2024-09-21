@@ -17,7 +17,7 @@ const userController = (fastify, opts, done) => {
     // not doing so will change the shape of objects during their lifecycle. REF: https://fastify.dev/docs/latest/Reference/Decorators
     fastify.decorateRequest('user', null);
 
-    fastify.addHook('onRequest', (request, reply, done) => {
+    fastify.addHook('preHandler', (request, reply, done) => {
         request.user = sampleUsers[0];
 
         done()
