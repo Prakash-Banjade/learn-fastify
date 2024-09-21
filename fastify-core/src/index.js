@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import userController from './users/usersController.js'
 
 const fastify = Fastify({ // create a new instance of fastify, passing in options
     logger: true,
@@ -17,7 +18,7 @@ fastify.get('/', (req, reply) => { // `reply` is the convension instead of respo
 // another method for defining route, using route method shorthand
 fastify.route({
     method: 'GET',
-    url: '/users',
+    url: '/test',
     handler: (req, reply) => {
         return {
             message: 'hello new user'
@@ -28,7 +29,7 @@ fastify.route({
 // define dynamic route
 fastify.route({
     method: 'GET',
-    url: '/users/:id',
+    url: '/test/:id',
     handler: (req, reply) => {
         return {
             message: `hello user with id ${req.params.id}`
@@ -49,6 +50,7 @@ fastify.route({
 const getRequestSchemaOptions = {
     schema: {
         querystring: {
+            type: 'object',
             properties: {
                 name: { type: 'string' },
             },
@@ -73,6 +75,7 @@ fastify.route({
     url: '/v2/products',
     schema: {
         querystring: { // validate query params
+            type: 'object',
             properties: {
                 name: { type: 'string' },
             },
@@ -103,6 +106,12 @@ fastify.route({
         ]
     }
 })
+
+// #endregion
+
+// #region FASTIFY ROUTER PLUGIN ==============================================================>
+
+fastify.register(userController, { prefix: '/users' })
 
 // #endregion
 
