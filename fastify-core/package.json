@@ -1,0 +1,22 @@
+{
+  "name": "learn-fastify",
+  "version": "1.0.0",
+  "description": "this is how I am learning fastify",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": [
+    "fastify",
+    "node"
+  ],
+  "author": "Prakash Banjade",
+  "license": "ISC",
+  "dependencies": {
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
