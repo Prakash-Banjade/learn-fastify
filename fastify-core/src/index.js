@@ -1,10 +1,14 @@
 import Fastify from 'fastify'
 import userController from './users/usersController.js'
+import dbConnector from './config/dbConnector.js'
+import { productController } from './products/product.controller.js'
 
 const fastify = Fastify({ // create a new instance of fastify, passing in options
     logger: true,
 })
 const PORT = 3000
+
+fastify.register(dbConnector); // register the plugin to connect to db
 
 // #region FASTIFY ROUTE HANDLERS ============================================================>
 
@@ -112,6 +116,7 @@ fastify.route({
 // #region FASTIFY ROUTER PLUGIN ==============================================================>
 
 fastify.register(userController, { prefix: '/users' })
+fastify.register(productController, { prefix: '/v3/products' })
 
 // #endregion
 
