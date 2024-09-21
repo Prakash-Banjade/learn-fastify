@@ -2,7 +2,7 @@
   "name": "learn-fastify",
   "version": "1.0.0",
   "description": "this is how I am learning fastify",
-  "main": "server.js",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js"
