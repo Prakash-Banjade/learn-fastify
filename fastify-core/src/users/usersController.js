@@ -38,9 +38,7 @@ const userController = (fastify, opts, done) => {
             }
         },
         (req, reply) => {
-            return {
-                id: req.user.id,
-            };
+            return req.user;
         })
 
     // define dynamic route

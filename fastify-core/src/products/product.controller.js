@@ -1,14 +1,7 @@
+import { verifyJWT } from "../hooks/verifyJwt.js"
 import { productCreateDto, productListResponseDto, productMutationSchema } from "./product.dto.js"
 
 export const productController = (fastify, opts, done) => {
-    const verifyJWT = async (req, reply) => { // using this function as preValidation in particular request, you can protect the route
-        try {
-            await req.jwtVerify();
-        } catch (err) {
-            reply.send(err);
-        }
-    };
-    
     fastify.get('/', { schema: { response: productListResponseDto }, preValidation: verifyJWT }, (req, reply) => {
         fastify.pg.query('SELECT * FROM product', (err, res) => {
             reply.send(err || res.rows)
