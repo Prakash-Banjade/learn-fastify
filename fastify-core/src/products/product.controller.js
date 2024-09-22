@@ -1,13 +1,21 @@
 import { productCreateDto, productListResponseDto, productMutationSchema } from "./product.dto.js"
 
 export const productController = (fastify, opts, done) => {
-    fastify.get('/', { schema: { response: productListResponseDto } }, (req, reply) => {
+    const verifyJWT = async (req, reply) => { // using this function as preValidation in particular request, you can protect the route
+        try {
+            await req.jwtVerify();
+        } catch (err) {
+            reply.send(err);
+        }
+    };
+    
+    fastify.get('/', { schema: { response: productListResponseDto }, preValidation: verifyJWT }, (req, reply) => {
         fastify.pg.query('SELECT * FROM product', (err, res) => {
             reply.send(err || res.rows)
         })
     })
 
-    fastify.post('/', { schema: { body: productCreateDto, response: productMutationSchema } }, (req, reply) => {
+    fastify.post('/', { schema: { body: productCreateDto, response: productMutationSchema }, preValidation: verifyJWT }, (req, reply) => {
         fastify.pg.query('INSERT INTO product (name, category) VALUES ($1, $2)', [req.body.name, req.body.category], (err, res) => {
             if (err) return reply.send({ message: err instanceof Error ? err.message : 'Something went wrong' })
 

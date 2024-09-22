@@ -15,13 +15,13 @@ const sampleUsers = [
 const userController = (fastify, opts, done) => {
     // you need to define the decorator like this to add the user to the request object because
     // not doing so will change the shape of objects during their lifecycle. REF: https://fastify.dev/docs/latest/Reference/Decorators
-    fastify.decorateRequest('user', null);
+    // fastify.decorateRequest('user', null);
 
-    fastify.addHook('preHandler', (request, reply, done) => {
-        request.user = sampleUsers[0];
+    // fastify.addHook('preHandler', (request, reply, done) => {
+    //     request.user = sampleUsers[0];
 
-        done()
-    })
+    //     done()
+    // })
 
     // defint get All route
     fastify.get('/', (req, reply) => {

@@ -1,7 +1,10 @@
+import 'dotenv/config'
 import Fastify from 'fastify'
 import userController from './users/usersController.js'
 import dbConnector from './config/dbConnector.js'
 import { productController } from './products/product.controller.js'
+import { authController } from './auth/auth.controller.js'
+import fastifyJwt from '@fastify/jwt'
 
 const fastify = Fastify({ // create a new instance of fastify, passing in options
     logger: true,
@@ -9,6 +12,11 @@ const fastify = Fastify({ // create a new instance of fastify, passing in option
 const PORT = 3000
 
 fastify.register(dbConnector); // register the plugin to connect to db
+
+// register fastify-jwt
+fastify.register(fastifyJwt, { // fastify-jwt automatically adds user property to the request object
+    secret: process.env.JWT_SECRET
+  })
 
 // #region FASTIFY ROUTE HANDLERS ============================================================>
 
@@ -117,6 +125,7 @@ fastify.route({
 
 fastify.register(userController, { prefix: '/users' })
 fastify.register(productController, { prefix: '/v3/products' })
+fastify.register(authController, { prefix: '/auth' })
 
 // #endregion
 
