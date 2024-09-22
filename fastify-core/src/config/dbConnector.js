@@ -7,7 +7,7 @@ import fastifyPostgres from '@fastify/postgres'
  */
 async function dbConnector(fastify, options) {
   fastify.register(fastifyPostgres, {
-    connectionString: 'postgres://postgres:pgSQL@localhost:5432/nest-redis'
+    connectionString: process.env.DATABASE_URL,
   })
 }
 
