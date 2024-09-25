@@ -1,8 +1,8 @@
 import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-// import { Image } from "src/images/entities/image.entity";
-// import { Account } from "src/accounts/entities/account.entity";
 import { Gender } from "src/common/types/global.type";
 import { BaseEntity } from "src/common/entities/base.entity";
+import { Account } from "src/auth-system/accounts/entities/account.entity";
+import { Image } from "src/file-management/images/entities/image.entity";
 
 @Entity()
 export class User extends BaseEntity {
@@ -15,10 +15,10 @@ export class User extends BaseEntity {
     @Column({ type: 'timestamp', nullable: true })
     dob: string | null;
 
-    // @OneToOne(() => Image, { nullable: true })
-    // @JoinColumn()
-    // profileImage: Image | null;
+    @OneToOne(() => Image, image => image.user_profileImage, { nullable: true })
+    @JoinColumn()
+    profileImage: Image | null;
 
-    // @OneToOne(() => Account, account => account.user, { nullable: true })
-    // account: Account
+    @OneToOne(() => Account, account => account.user, { nullable: true })
+    account: Account | null;
 }

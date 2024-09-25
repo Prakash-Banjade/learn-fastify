@@ -3,7 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from './datasource/typeorm.module';
-import { UsersModule } from './users/users.module';
+import { AuthSystemModule } from './auth-system/auth-system.module';
+import { FileManagementModule } from './file-management/file-management.module';
 
 @Module({
   imports: [
@@ -11,7 +12,8 @@ import { UsersModule } from './users/users.module';
       isGlobal: true,
     }),
     TypeOrmModule,
-    UsersModule,
+    AuthSystemModule,
+    FileManagementModule,
   ],
   controllers: [AppController],
   providers: [AppService],
