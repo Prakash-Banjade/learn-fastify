@@ -3,10 +3,9 @@ import { CreateImageDto } from './dto/create-image.dto';
 import { UpdateImageDto } from './dto/update-image.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Image } from './entities/image.entity';
-import { Brackets, In, Like, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import path from 'path';
 import fs from 'fs';
-import { Response } from 'express';
 import sharp from 'sharp';
 import { ImageQueryDto } from './dto/image-query.dto';
 import { AccountsService } from 'src/auth-system/accounts/accounts.service';
@@ -16,6 +15,7 @@ import { QueryDto } from 'src/common/dto/query.dto';
 import { applySelectColumns } from 'src/utils/apply-select-cols';
 import { imageSelectColumns } from './helpers/image-select-cols';
 import paginatedData from 'src/utils/paginatedData';
+import { FastifyReply } from 'fastify';
 
 @Injectable()
 export class ImagesService {
@@ -92,7 +92,7 @@ export class ImagesService {
     return existingImage
   }
 
-  async serveImage(filename: string, queryDto: ImageQueryDto, @Res() res: Response) {
+  async serveImage(filename: string, queryDto: ImageQueryDto, @Res() res: FastifyReply) {
     const imagePath = path.join(process.cwd(), 'public', filename);
 
     if (queryDto.thumbnail === 'true') {
@@ -100,7 +100,7 @@ export class ImagesService {
 
       try {
         const thumbnailBuffer = await sharp(fs.readFileSync(thumbnailPath)).toBuffer();
-        res.setHeader('Content-Type', 'image/webp');
+        res.header('Content-Type', 'image/webp');
         res.send(thumbnailBuffer);
         return;
       } catch (err) {
@@ -118,7 +118,7 @@ export class ImagesService {
         .resize(isNaN(Number(queryDto.w)) ? undefined : parseInt(queryDto.w))
         .toBuffer();
 
-      res.setHeader('Content-Type', 'image/webp');
+      res.header('Content-Type', 'image/webp');
       res.send(resizedImageBuffer);
     } catch (err) {
       console.error('Original image not found:', err);

@@ -4,13 +4,13 @@ import { CreateImageDto } from './dto/create-image.dto';
 import { UpdateImageDto } from './dto/update-image.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FormDataRequest } from 'nestjs-form-data';
-import { Response } from 'express';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { ImageQueryDto } from './dto/image-query.dto';
 import { AuthUser } from 'src/common/types/global.type';
 import { CurrentUser } from 'src/common/decorators/user.decorator';
 import { QueryDto } from 'src/common/dto/query.dto';
 import { Public } from 'src/common/decorators/setPublicRoute.decorator';
+import { FastifyReply } from 'fastify';
 
 @ApiBearerAuth()
 @ApiTags('Upload Images')
@@ -32,7 +32,7 @@ export class ImagesController {
   @Public()
   @Get('get-image/:slug')
   @SkipThrottle()
-  getImage(@Param("slug") slug: string, @Query() queryDto: ImageQueryDto, @Res() res: Response, @CurrentUser() currentUser?: AuthUser) {
+  getImage(@Param("slug") slug: string, @Query() queryDto: ImageQueryDto, @Res() res: FastifyReply, @CurrentUser() currentUser?: AuthUser) {
     return this.imagesService.serveImage(slug, queryDto, res);
   }
 
