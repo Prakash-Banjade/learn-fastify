@@ -1,19 +1,20 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString } from "class-validator";
+import { IsEnum, IsOptional, IsString } from "class-validator";
 
 export class ImageQueryDto {
     @ApiPropertyOptional()
     @IsString()
     @IsOptional()
-    w: string;
+    w?: string;
 
     @ApiPropertyOptional()
     @IsString()
     @IsOptional()
-    q: string;
+    q?: string;
 
-    @ApiPropertyOptional()
+    @ApiPropertyOptional({ enum: ['true', 'false'] })
     @IsString()
     @IsOptional()
-    thumbnail: string;
+    @IsEnum(['true', 'false'])
+    thumbnail?: string;
 }
