@@ -27,28 +27,21 @@ export class ImagesService {
   async upload(createImageDto: CreateImageDto, currentUser: AuthUser) {
     const account = await this.accountService.findOne(currentUser.accountId);
 
-    const images: { id: string, url: string }[] = [];
-
-    for (const uploadImage of createImageDto.images) {
+    const images: Image[] = await Promise.all(createImageDto?.images.map(async (uploadImage) => {
       const metaData = await getImageMetadata(uploadImage);
 
-      const newImage = this.imagesRepository.create({
+      return this.imagesRepository.create({
         ...metaData,
         name: createImageDto.name || metaData.originalName,
         uploadedBy: account
-      })
-
-      await this.imagesRepository.save(newImage);
-
-      images.push({
-        id: newImage.id,
-        url: newImage.url
       });
-    }
+    }));
+
+    await this.imagesRepository.save(images);
 
     return {
       message: 'Image(s) Uploaded',
-      images,
+      images: images.map(image => ({ id: image.id, url: image.url })),
       count: createImageDto.images.length,
     }
   }
@@ -92,7 +85,7 @@ export class ImagesService {
     return existingImage
   }
 
-  async serveImage(filename: string, queryDto: ImageQueryDto, @Res() res: FastifyReply) {
+  async serveImage(filename: string, queryDto: ImageQueryDto, @Res() reply: FastifyReply) {
     const imagePath = path.join(process.cwd(), 'public', filename);
 
     if (queryDto.thumbnail === 'true') {
@@ -100,30 +93,43 @@ export class ImagesService {
 
       try {
         const thumbnailBuffer = await sharp(fs.readFileSync(thumbnailPath)).toBuffer();
-        res.header('Content-Type', 'image/webp');
-        res.send(thumbnailBuffer);
+        reply.header('Content-Type', 'image/webp');
+        reply.send(thumbnailBuffer);
         return;
       } catch (err) {
         console.error('Thumbnail not found:', err);
-        res.status(404).send('Thumbnail not found');
+        reply.status(404).send('Thumbnail not found');
         return;
       }
     }
 
     try {
-      const originalImage = fs.readFileSync(imagePath);
+      // Create a readable stream from the image file
+      const readStream = fs.createReadStream(imagePath);
 
-      const resizedImageBuffer = await sharp(originalImage)
+      // Set the response header for the image type
+      reply.header('Content-Type', 'image/webp');
+
+      // Use sharp to process the image
+      const transform = sharp()
         .webp({ quality: isNaN(Number(queryDto.q)) ? 90 : parseInt(queryDto.q) })
-        .resize(isNaN(Number(queryDto.w)) ? undefined : parseInt(queryDto.w))
-        .toBuffer();
+        .resize(isNaN(Number(queryDto.w)) ? undefined : parseInt(queryDto.w));
 
-      res.header('Content-Type', 'image/webp');
-      res.send(resizedImageBuffer);
+      // Pipe the read stream into the sharp transform, and then manually pipe chunks to the reply
+      readStream.pipe(transform).on('data', (chunk) => {
+        reply.raw.write(chunk);
+      });
+
+      // End the response once the stream has finished
+      transform.on('end', () => {
+        reply.raw.end();
+      });
+
     } catch (err) {
       console.error('Original image not found:', err);
-      res.status(404).send('Original image not found');
+      reply.status(404).send('Original image not found');
     }
+
   }
 
   async update(id: string, updateImageDto: UpdateImageDto, currentUser: AuthUser) {

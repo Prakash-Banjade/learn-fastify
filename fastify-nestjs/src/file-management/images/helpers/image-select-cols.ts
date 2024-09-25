@@ -7,10 +7,7 @@ export const imageSelectColumns: FindOptionsSelect<Image> = {
     width: true,
     height: true,
     size: true,
-    format: true,
-    space: true,
     originalName: true,
-    name: true,
     mimeType: true,
     createdAt: true,
     uploadedBy: {
