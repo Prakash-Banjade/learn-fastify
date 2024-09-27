@@ -3,7 +3,7 @@ export interface AuthUser {
     accountId: string;
     name: string;
     email: string;
-    image: string;
+    image: string | null;
     role: Role;
 }
 
