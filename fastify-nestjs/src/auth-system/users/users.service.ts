@@ -1,5 +1,4 @@
-import { BadRequestException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, Scope } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Brackets, DataSource } from 'typeorm';
 import { REQUEST } from '@nestjs/core';
@@ -10,15 +9,20 @@ import paginatedData from 'src/utils/paginatedData';
 import { User } from './entities/user.entity';
 import { applySelectColumns } from 'src/utils/apply-select-cols';
 import { userSelectCols } from './helpers/user-select-cols';
+import { AuthUser } from 'src/common/types/global.type';
+import { Account } from '../accounts/entities/account.entity';
+import { ImagesService } from 'src/file-management/images/images.service';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class UsersService extends BaseRepository {
   constructor(
     private readonly datasource: DataSource,
     @Inject(REQUEST) req: FastifyRequest,
+    private readonly imagesService: ImagesService,
   ) { super(datasource, req) }
 
   private readonly usersRepo = this.datasource.getRepository<User>(User);
+  private readonly accountRepo = this.datasource.getRepository<Account>(Account);
 
   async findAll(queryDto: UsersQueryDto) {
     const queryBuilder = this.usersRepo.createQueryBuilder('user');
@@ -42,6 +46,9 @@ export class UsersService extends BaseRepository {
   async findOne(id: string) {
     const existing = await this.usersRepo.findOne({
       where: { id },
+      relations: {
+        profileImage: true, account: true,
+      },
       select: userSelectCols,
     })
     if (!existing) throw new BadRequestException('User not found');
@@ -49,35 +56,39 @@ export class UsersService extends BaseRepository {
     return existing;
   }
 
-  async update(updateUserDto: UpdateUserDto) {
-    // const existingUser = await this.findOne(currentUser.userId);
-    // const existingAccount = await this.accountRepo.findOneBy({ id: currentUser.accountId });
-    // if (!existingAccount) throw new InternalServerErrorException('Unable to update the associated profile. Please contact support.');
+  async myDetails(currentUser: AuthUser) {
+    return await this.findOne(currentUser.userId);
+  }
 
-    // const profileImage = ((updateUserDto.profileImageId && existingUser.profileImage?.id !== updateUserDto.profileImageId) || !existingUser.profileImage)
-    //   ? await this.imagesService.findOne(updateUserDto.profileImageId)
-    //   : existingUser.profileImage;
+  async update(updateUserDto: UpdateUserDto, currentUser: AuthUser) {
+    const existingUser = await this.findOne(currentUser.userId);
+    const existingAccount = await this.accountRepo.findOneBy({ id: currentUser.accountId });
+    if (!existingAccount) throw new InternalServerErrorException('Unable to update the associated profile. Please contact support.');
 
-    // // update user
-    // Object.assign(existingUser, {
-    //   ...updateUserDto,
-    // });
+    const profileImage = (updateUserDto.profileImageId && (existingUser.profileImage?.id !== updateUserDto.profileImageId || !existingUser.profileImage))
+      ? await this.imagesService.findOne(updateUserDto.profileImageId)
+      : existingUser.profileImage;
 
-    // // assign profile image
-    // existingUser.profileImage = profileImage;
+    // update user
+    Object.assign(existingUser, {
+      ...updateUserDto,
+    });
 
-    // await this.usersRepo.save(existingUser);
+    // assign profile image
+    existingUser.profileImage = profileImage;
 
-    // Object.assign(existingAccount, {
-    //   firstName: updateUserDto.firstName || existingAccount.firstName,
-    //   lastName: updateUserDto.lastName,
-    // })
+    await this.usersRepo.save(existingUser);
 
-    // // await this.accountRepo.save(existingAccount);
+    Object.assign(existingAccount, {
+      firstName: updateUserDto.firstName || existingAccount.firstName,
+      lastName: updateUserDto.lastName,
+    })
 
-    // return {
-    //   message: 'Profile Updated'
-    // }
+    await this.accountRepo.save(existingAccount);
+
+    return {
+      message: 'Profile Updated'
+    }
   }
 
   async remove(id: string) {

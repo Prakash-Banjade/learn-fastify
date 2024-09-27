@@ -1,8 +1,11 @@
-import { Controller, Get, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Body, Patch, Param, Delete, Query, UseInterceptors } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersQueryDto } from './dto/user-query.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from 'src/common/decorators/user.decorator';
+import { AuthUser } from 'src/common/types/global.type';
+import { TransactionInterceptor } from 'src/common/interceptors/transaction.interceptor';
 
 @ApiTags("Users")
 @Controller('users')
@@ -19,14 +22,20 @@ export class UsersController {
     return this.usersService.findAll(queryDto);
   }
 
+  @Get('me')
+  getMyInfo(@CurrentUser() currentUser: AuthUser) {
+    return this.usersService.myDetails(currentUser);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch()
-  update(@Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(updateUserDto);
+  @UseInterceptors(TransactionInterceptor)
+  update(@Body() updateUserDto: UpdateUserDto, @CurrentUser() currentUser: AuthUser) {
+    return this.usersService.update(updateUserDto, currentUser);
   }
 
   @Delete(':id')
