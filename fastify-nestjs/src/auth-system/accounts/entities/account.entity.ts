@@ -2,7 +2,7 @@ import { BeforeInsert, BeforeUpdate, Column, Entity, JoinColumn, OneToMany, OneT
 import * as bcrypt from 'bcrypt';
 import { BadRequestException } from "@nestjs/common";
 import { BaseEntity } from "src/common/entities/base.entity";
-import { Role } from "src/common/types/global.type";
+import { AuthProvider, Role } from "src/common/types/global.type";
 import { User } from "src/auth-system/users/entities/user.entity";
 import { Image } from "src/file-management/images/entities/image.entity";
 
@@ -19,6 +19,9 @@ export class Account extends BaseEntity {
 
     @Column({ type: 'varchar', nullable: true })
     password?: string;
+
+    @Column({ type: 'enum', enum: AuthProvider, default: AuthProvider.CREDENTIALS })
+    provider: AuthProvider;
 
     @Column({ type: 'enum', enum: Role, default: Role.USER })
     role: Role;

@@ -6,6 +6,9 @@ import { TypeOrmModule } from './datasource/typeorm.module';
 import { AuthSystemModule } from './auth-system/auth-system.module';
 import { FileManagementModule } from './file-management/file-management.module';
 import { MemoryStoredFile, NestjsFormDataModule } from 'nestjs-form-data';
+import { MailModule } from './mail/mail.module';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -23,11 +26,22 @@ import { MemoryStoredFile, NestjsFormDataModule } from 'nestjs-form-data';
       },
       cleanupAfterSuccessHandle: false, // !important
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 1000, // 5 req per second
+      limit: 5,
+    }]),
     TypeOrmModule,
     AuthSystemModule,
     FileManagementModule,
+    MailModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard, // global rate limiting, but can be overriden in route level
+    },
+  ],
 })
 export class AppModule { }

@@ -3,7 +3,7 @@ export interface AuthUser {
     accountId: string;
     name: string;
     email: string;
-    image: string | null;
+    image: string | undefined;
     role: Role;
 }
 
@@ -25,4 +25,9 @@ export enum Gender {
     MALE = 'male',
     FEMALE = 'female',
     OTHER = 'other',
+}
+
+export enum AuthProvider {
+    GOOGLE = 'google',
+    CREDENTIALS = 'credentials',
 }
