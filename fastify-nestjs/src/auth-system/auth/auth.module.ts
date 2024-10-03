@@ -5,7 +5,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { ImagesModule } from 'src/file-management/images/images.module';
 import { AccountsModule } from '../accounts/accounts.module';
 import { UsersModule } from '../users/users.module';
-require('dotenv').config();
 
 @Module({
   imports: [
