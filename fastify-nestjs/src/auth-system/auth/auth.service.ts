@@ -6,6 +6,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  Scope,
   UnauthorizedException,
 } from '@nestjs/common';
 import { DataSource, Like } from 'typeorm';
@@ -20,7 +21,6 @@ import { MailService } from 'src/mail/mail.service';
 import { EmailVerificationPending } from './entities/email-verification-pending.entity';
 import { EmailVerificationDto } from './dto/email-verification.dto';
 import { ChangePasswordDto } from './dto/changePassword.dto';
-import { Credentials, OAuth2Client } from 'google-auth-library';
 import { BaseRepository } from 'src/common/repository/base-repository';
 import { REQUEST } from '@nestjs/core';
 import { FastifyReply, FastifyRequest } from 'fastify';
@@ -29,9 +29,8 @@ import { User } from '../users/entities/user.entity';
 import { AuthProvider, AuthUser } from 'src/common/types/global.type';
 import { generateOtp } from 'src/utils/generateOPT';
 import { FastifyCookieOptions } from '@fastify/cookie';
-require('dotenv').config();
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class AuthService extends BaseRepository {
   constructor(
     private readonly datasource: DataSource,
