@@ -85,7 +85,7 @@ export class AuthService extends BaseRepository {
     const new_refresh_token = await this.createRefreshToken(payload);
 
     const newRefreshTokenArray = !refresh_token ? (foundAccount.refresh_token ?? []) : (foundAccount?.refresh_token?.filter((rt) => rt !== refresh_token) ?? [])
-    if (refresh_token) res.clearCookie('refresh_token', cookieOptions); // CLEAR COOKIE, BCZ A NEW ONE IS TO BE GENERATED
+    // TODO: if (refresh_token) res.clearCookie('refresh_token', cookieOptions); // CLEAR COOKIE, BCZ A NEW ONE IS TO BE GENERATED
 
     foundAccount.refresh_token = [...newRefreshTokenArray, new_refresh_token];
 
