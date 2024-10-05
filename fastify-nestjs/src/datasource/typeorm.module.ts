@@ -14,8 +14,8 @@ import { Global, Module } from '@nestjs/common';
                     const dataSource = new DataSource({
                         type: 'postgres',
                         url: process.env.DATABASE_URL,
-                        synchronize: true,
                         entities: [`${__dirname}/../**/**.entity{.ts,.js}`], // this will automatically load all entity file in the src folder
+                        synchronize: false,
                     });
                     await dataSource.initialize(); // initialize the data source
                     console.log('Database connected successfully');
