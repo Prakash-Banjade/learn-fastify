@@ -4,7 +4,6 @@ import { CaslAbilityFactory } from "../../auth-system/casl/casl-ability.factory/
 import { ForbiddenError } from "@casl/ability";
 import { AbilityRequiredRules, CHECK_ABILITY } from "../decorators/abilities.decorator";
 import { IS_PUBLIC_KEY } from "../decorators/setPublicRoute.decorator";
-require('dotenv').config();
 
 @Injectable()
 export class AbilitiesGuard implements CanActivate {
@@ -20,13 +19,10 @@ export class AbilitiesGuard implements CanActivate {
         ]);
         const rules = this.reflector.get<AbilityRequiredRules[]>(CHECK_ABILITY, context.getHandler()) || []
 
-
-        if (isPublic) {
-            // 💡 See this condition
-            return true;
-        }
+        if (isPublic) return true; // no need to authorize public routes
 
         const { user } = context.switchToHttp().getRequest();
+        console.log(user)
         const ability = this.caslAbility.defineAbility(user);
 
         try {
