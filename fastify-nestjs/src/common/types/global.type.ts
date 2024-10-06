@@ -1,9 +1,7 @@
 export interface AuthUser {
     userId: string;
     accountId: string;
-    name: string;
     email: string;
-    image: string | undefined;
     role: Role;
 }
 
