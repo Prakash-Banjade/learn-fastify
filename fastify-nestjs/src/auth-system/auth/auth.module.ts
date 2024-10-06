@@ -4,9 +4,14 @@ import { AuthService } from './auth.service';
 import { ImagesModule } from 'src/file-management/images/images.module';
 import { AccountsModule } from '../accounts/accounts.module';
 import { UsersModule } from '../users/users.module';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { LocalStrategy } from './strategies/local.strategy';
 
 @Module({
   imports: [
+    PassportModule.register({ defaultStrategy: 'local' }),
+    JwtModule,
     AccountsModule,
     UsersModule,
     ImagesModule,
@@ -14,6 +19,7 @@ import { UsersModule } from '../users/users.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    LocalStrategy,
   ]
 })
 export class AuthModule { }
