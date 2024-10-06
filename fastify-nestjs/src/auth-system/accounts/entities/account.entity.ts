@@ -2,7 +2,7 @@ import { BeforeInsert, BeforeUpdate, Column, Entity, JoinColumn, OneToMany, OneT
 import * as bcrypt from 'bcrypt';
 import { BadRequestException } from "@nestjs/common";
 import { BaseEntity } from "src/common/entities/base.entity";
-import { AuthProvider, Role } from "src/common/types/global.type";
+import { Role } from "src/common/types/global.type";
 import { User } from "src/auth-system/users/entities/user.entity";
 import { Image } from "src/file-management/images/entities/image.entity";
 
@@ -20,25 +20,19 @@ export class Account extends BaseEntity {
     @Column({ type: 'varchar', nullable: true })
     password?: string;
 
-    @Column({ type: 'enum', enum: AuthProvider, default: AuthProvider.CREDENTIALS })
-    provider: AuthProvider;
-
     @Column({ type: 'enum', enum: Role, default: Role.USER })
     role: Role;
-
-    @Column({ type: 'simple-array', nullable: true })
-    refresh_token: string[];
 
     @Column({ type: 'boolean', default: false })
     isVerified: boolean = false;
 
     @OneToOne(() => User, user => user.account, { onDelete: 'CASCADE', nullable: true })
     @JoinColumn()
-    user: User
+    user: User;
 
     @OneToMany(() => Image, image => image.uploadedBy)
-    images: Image[]
-    
+    images: Image[];
+
     @BeforeInsert()
     hashPassword() {
         if (!this.password) throw new BadRequestException('Password required');
