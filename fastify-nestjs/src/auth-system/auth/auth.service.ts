@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { PasswordChangeRequest } from './entities/password-change-request.entity';
-import { MailService } from 'src/mail/mail.service';
 import { EmailVerificationPending } from './entities/email-verification-pending.entity';
 import { BaseRepository } from 'src/common/repository/base-repository';
 import { REQUEST } from '@nestjs/core';
@@ -20,6 +19,9 @@ import { AuthUser } from 'src/common/types/global.type';
 import { CookieSerializeOptions } from '@fastify/cookie';
 import { Tokens } from 'src/common/CONSTANTS';
 import { RegisterDto } from './dto/register.dto';
+import { SignInDto } from './dto/signIn.dto';
+import { MailService } from 'src/mail/mail.service';
+import { AuthHelper } from './helpers/auth.helper';
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthService extends BaseRepository {
@@ -28,7 +30,8 @@ export class AuthService extends BaseRepository {
     @Inject(REQUEST) req: FastifyRequest,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    // private readonly mailService: MailService,
+    private readonly mailService: MailService,
+    private readonly authHelper: AuthHelper,
   ) { super(datasource, req) }
 
   private readonly accountsRepo = this.datasource.getRepository<Account>(Account)
@@ -40,20 +43,45 @@ export class AuthService extends BaseRepository {
   private readonly REFRESH_TOKEN_SECRET = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
   private readonly REFRESH_TOKEN_EXPIRATION_MS = this.configService.getOrThrow<string>('REFRESH_TOKEN_EXPIRATION_MS');
 
-  async login(account: Account, response: FastifyReply) {
+  async login(signInDto: SignInDto, req: FastifyRequest, reply: FastifyReply) {
+    const existingRefreshToken = req.cookies?.refresh_token;
+
+    const foundAccount = await this.accountsRepo.findOneBy({ email: signInDto.email });
+
+    if (!foundAccount) throw new UnauthorizedException('Invalid email. Proceed to sign up.');
+
+    if (!foundAccount.isVerified) return this.authHelper.sendConfirmationEmail(foundAccount);
+
+    const isPasswordValid = await bcrypt.compare(
+      signInDto.password,
+      foundAccount.password,
+    );
+
+    if (!isPasswordValid) throw new UnauthorizedException('Invalid password')
 
     const payload: AuthUser = {
-      email: account.email,
-      accountId: account.id,
-      userId: account.user.id,
-      role: account.role,
+      email: foundAccount.email,
+      accountId: foundAccount.id,
+      userId: foundAccount.user.id,
+      role: foundAccount.role,
     };
 
     const access_token = await this.createAccessToken(payload);
     const refresh_token = await this.createRefreshToken(payload);
 
-    response.setCookie(Tokens.ACCESS_TOKEN_COOKIE_NAME, access_token, this.getCookieOptions(Tokens.ACCESS_TOKEN_COOKIE_NAME))
-    response.setCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, refresh_token, this.getCookieOptions(Tokens.REFRESH_TOKEN_COOKIE_NAME))
+    const newRefreshTokenArray = !refresh_token ? (foundAccount.refreshTokens ?? []) : (foundAccount?.refreshTokens?.filter((rt) => rt !== existingRefreshToken) ?? [])
+    if (refresh_token) reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, this.getCookieOptions(Tokens.REFRESH_TOKEN_COOKIE_NAME)); // CLEAR COOKIE, BCZ A NEW ONE IS TO BE GENERATED
+
+    foundAccount.refreshTokens = [...newRefreshTokenArray, refresh_token];
+
+    reply.setCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, refresh_token, this.getCookieOptions(Tokens.REFRESH_TOKEN_COOKIE_NAME))
+
+    await this.accountsRepo.save(foundAccount);
+
+    return { access_token };
+  }
+
+  private async sendConfirmationEmail(account: Account) {
 
   }
 
@@ -85,7 +113,6 @@ export class AuthService extends BaseRepository {
     return cookieOptions;
   }
 
-
   async validateAccount(email: string, password: string): Promise<Account> {
     const account = await this.accountsRepo.findOneBy({ email });
 
@@ -101,7 +128,7 @@ export class AuthService extends BaseRepository {
   async register(registerDto: RegisterDto) {
     const account = this.accountsRepo.create(registerDto);
     return await this.accountsRepo.save(account);
-  } 
+  }
 
 
 }

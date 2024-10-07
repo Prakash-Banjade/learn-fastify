@@ -1,11 +1,10 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Request, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Request, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiTags } from '@nestjs/swagger';
-import { LocalAuthGuard } from 'src/common/guards/local-auth.guard';
-import { CurrentUser } from 'src/common/decorators/user.decorator';
 import { AuthUser } from 'src/common/types/global.type';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { RegisterDto } from './dto/register.dto';
+import { SignInDto } from './dto/signIn.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -13,13 +12,13 @@ export class AuthController {
     constructor(private authService: AuthService) { }
 
     @Post('login')
-    @UseGuards(LocalAuthGuard)
     @HttpCode(HttpStatus.OK)
     async login(
-        @Request() req: FastifyRequest & { user: AuthUser },
-        // @Res({ passthrough: true }) res: FastifyReply
+        @Body() signInDto: SignInDto,
+        @Request() request: FastifyRequest,
+        @Res({ passthrough: true }) response: FastifyReply,
     ) {
-        console.log(req.user);
+        return this.authService.login(signInDto, request, response);
     }
 
     @Post('register')
