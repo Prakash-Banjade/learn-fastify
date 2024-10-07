@@ -1,94 +1,85 @@
-import { MailerService } from '@nestjs-modules/mailer';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, LoggerService } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { createTransport, Transporter } from 'nodemailer';
 import { Account } from 'src/auth-system/accounts/entities/account.entity';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { emailConfig, ITemplatedData, ITemplates } from './mail-service.config';
+import { readFileSync } from 'fs';
+import Handlebars from 'handlebars';
+import { join } from 'path';
 
 @Injectable()
 export class MailService {
-    constructor(
-        private mailerService: MailerService,
-        private readonly configService: ConfigService
-    ) { }
+    private readonly loggerService: LoggerService;
+    private readonly transport: Transporter<SMTPTransport.SentMessageInfo>;
+    private readonly email: string;
+    private readonly domain: string;
+    private readonly templates: ITemplates;
 
-    async sendEmailVerificationOtp(account: Account, otp: number, verificationToken: string) {
-        const result = await this.mailerService.sendMail({
-            to: account.email,
-            subject: 'Email verification',
-            template: './sendEmailVerificationOtp', // `.hbs` extension is appended automatically
-            context: { // ✏️ filling curly brackets with content
-                name: account.firstName + ' ' + account.lastName,
-                otp: otp,
-                url: `${this.configService.get('CLIENT_URL')}/verify-email/${verificationToken}`,
-            },
-        });
+    constructor(private readonly configService: ConfigService) {
+        this.transport = createTransport(emailConfig);
+        this.email = `"Nest Fastify" <${emailConfig.auth.user}>`;
+        this.domain = this.configService.get<string>('domain');
+        this.loggerService = new Logger(MailService.name);
 
-        const previewUrl = nodemailer.getTestMessageUrl(result);
-        console.log('Preview URL:', previewUrl);
-
-        return { result, previewUrl };
-
+        this.templates = {
+            confirmation: MailService.parseTemplate('email-verification-otp.hbs'),
+            resetPassword: MailService.parseTemplate('reset-password.hbs'),
+        };
     }
 
-    async sendResetPasswordLink(account: Account, resetToken: string, cms?: string) {
-        const CLIENT_URL = cms === "true" ? this.configService.get('CMS_URL') : this.configService.get('CLIENT_URL');
-
-        const result = await this.mailerService.sendMail({
-            to: account.email,
-            subject: 'Reset your password',
-            template: './sendResetPasswordLink', // `.hbs` extension is appended automatically
-            context: { // ✏️ filling curly brackets with content
-                name: account.firstName + ' ' + account.lastName,
-                resetLink: `${CLIENT_URL}/auth/forget-password?resetToken=${resetToken}`,
-            },
-        });
-
-        const previewUrl = nodemailer.getTestMessageUrl(result);
-
-        return { result, previewUrl };
+    private static parseTemplate(
+        templateName: string,
+    ): Handlebars.TemplateDelegate<ITemplatedData> {
+        const templateText = readFileSync(
+            join(__dirname, 'templates', templateName),
+            'utf-8',
+        );
+        return Handlebars.compile<ITemplatedData>(templateText, { strict: true });
     }
 
-    async sendNewsletterVerification(email: string, verificationToken: string) {
-        const result = await this.mailerService.sendMail({
-            to: email,
-            subject: 'Verify your email to subscribe to our newsletter',
-            template: './sendNewsletterSubscribeLink', // `.hbs` extension is appended automatically
-            context: { // ✏️ filling curly brackets with content
-                subscribeUrl: `${this.configService.get('CLIENT_URL')}/newsletter/subscribe?verificationToken=${verificationToken}`,
-            },
-        });
-
-        const previewUrl = nodemailer.getTestMessageUrl(result);
-
-        return { result, previewUrl };
+    public sendEmail(
+        to: string,
+        subject: string,
+        html: string,
+        log?: string,
+    ): void {
+        this.transport
+            .sendMail({
+                from: this.email,
+                to,
+                subject,
+                html,
+            })
+            .then((data) => {
+                console.log(data)
+                this.loggerService.log(log ?? 'A new email was sent.')
+            })
+            .catch((error) => this.loggerService.error(error));
     }
 
-    async subscribeConfirmationNotify(email: string, token: string) {
-        const result = await this.mailerService.sendMail({
-            to: email,
-            subject: 'Successfully subscribed to Car Rental newsletter',
-            template: './newsletterSubscribedNotify', // `.hbs` extension is appended automatically
-            context: { // ✏️ filling curly brackets with content
-                unsubscribeUrl: `${this.configService.get('CLIENT_URL')}/newsletter/unsubscribe?token=${token}`,
-            },
+    public sendConfirmationEmail(account: Account, token: string): void {
+        const { email, firstName, lastName } = account;
+        const subject = 'Confirm your email';
+        const html = this.templates.confirmation({
+            name: firstName + ' ' + lastName,
+            link: `https://${this.domain}/auth/confirm/${token}`,
         });
-
-        const previewUrl = nodemailer.getTestMessageUrl(result);
-
-        return { result, previewUrl };
+        this.sendEmail(email, subject, html, 'A new confirmation email was sent.');
     }
 
-    async unSubscribeNotify(email: string) {
-        const result = await this.mailerService.sendMail({
-            to: email,
-            subject: 'Unsubscribed to Car Rental newsletter',
-            template: './newsletterUnsubscribeNotify', // `.hbs` extension is appended automatically
-            context: { // ✏️ filling curly brackets with content
-            },
+    public sendResetPasswordEmail(account: Account, token: string): void {
+        const { email, firstName, lastName } = account;
+        const subject = 'Reset your password';
+        const html = this.templates.resetPassword({
+            name: firstName + ' ' + lastName,
+            link: `https://${this.domain}/auth/reset-password/${token}`,
         });
-
-        const previewUrl = nodemailer.getTestMessageUrl(result);
-
-        return { result, previewUrl };
+        this.sendEmail(
+            email,
+            subject,
+            html,
+            'A new reset password email was sent.',
+        );
     }
 }
