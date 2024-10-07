@@ -30,6 +30,10 @@ export class AuthHelper extends BaseRepository {
     private readonly emailVerificationPendingRepo = this.datasource.getRepository<EmailVerificationPending>(EmailVerificationPending)
 
     async sendConfirmationEmail(account: Account) {
+        // check for existing verification pending, if yes, remove
+        const existingVerificationRequest = await this.emailVerificationPendingRepo.findOneBy({ email: account.email });
+        if (existingVerificationRequest) await this.emailVerificationPendingRepo.remove(existingVerificationRequest);
+
         const otp = generateOtp();
         const verificationToken = await this.jwtService.signAsync(
             { email: account.email },
