@@ -5,6 +5,7 @@ import { Account } from 'src/auth-system/accounts/entities/account.entity';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { emailConfig, ITemplatedData, ITemplates } from './mail-service.config';
 import { readFileSync } from 'fs';
+import * as nodemailer from 'nodemailer';
 import Handlebars from 'handlebars';
 import { join } from 'path';
 
@@ -38,37 +39,36 @@ export class MailService {
         return Handlebars.compile<ITemplatedData>(templateText, { strict: true });
     }
 
-    public sendEmail(
+    public async sendEmail(
         to: string,
         subject: string,
         html: string,
         log?: string,
-    ): void {
-        this.transport
-            .sendMail({
-                from: this.email,
-                to,
-                subject,
-                html,
-            })
-            .then((data) => {
-                console.log(data)
-                this.loggerService.log(log ?? 'A new email was sent.')
-            })
-            .catch((error) => this.loggerService.error(error));
+    ): Promise<void> {
+        const result = await this.transport.sendMail({
+            from: this.email,
+            to,
+            subject,
+            html,
+        });
+
+        const previewUrl = nodemailer.getTestMessageUrl(result);
+
+        console.log(previewUrl);
     }
 
-    public sendConfirmationEmail(account: Account, token: string): void {
+    public async sendConfirmationEmail(account: Account, token: string, otp: number) {
         const { email, firstName, lastName } = account;
         const subject = 'Confirm your email';
         const html = this.templates.confirmation({
             name: firstName + ' ' + lastName,
             link: `https://${this.domain}/auth/confirm/${token}`,
+            otp: String(otp),
         });
         this.sendEmail(email, subject, html, 'A new confirmation email was sent.');
     }
 
-    public sendResetPasswordEmail(account: Account, token: string): void {
+    public async sendResetPasswordEmail(account: Account, token: string) {
         const { email, firstName, lastName } = account;
         const subject = 'Reset your password';
         const html = this.templates.resetPassword({

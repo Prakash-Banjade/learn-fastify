@@ -1,3 +1,4 @@
+require('dotenv').config()
 import { TemplateDelegate } from 'handlebars';
 
 interface IEmailAuth {
@@ -13,12 +14,12 @@ export interface IEmailConfig {
 }
 
 export const emailConfig: IEmailConfig = {
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT, 10),
-    secure: process.env.EMAIL_SECURE === 'true',
+    host: process.env.MAIL_OUTGOING_SERVER,
+    port: parseInt(process.env.MAIL_SMTP_PORT, 10),
+    secure: process.env.MAIL_SMTP_PORT === '465',
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
+        user: process.env.MAIL_USERNAME,
+        pass: process.env.MAIL_PASSWORD,
     },
 }
 
@@ -29,6 +30,6 @@ export interface ITemplatedData {
 
 
 export interface ITemplates {
-    confirmation: TemplateDelegate<ITemplatedData>;
+    confirmation: TemplateDelegate<ITemplatedData & { otp: string }>;
     resetPassword: TemplateDelegate<ITemplatedData>;
 }
