@@ -1,8 +1,8 @@
 import { Catch, ArgumentsHost, HttpStatus, HttpException } from "@nestjs/common";
 import { BaseExceptionFilter } from "@nestjs/core";
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { QueryFailedError } from "typeorm";
 import { ValidationError } from 'class-validator'
-import { FastifyReply } from "fastify";
 
 type ErrorResponse = {
     statusCode: number,
@@ -18,7 +18,7 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
     catch(exception: unknown, host: ArgumentsHost) {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse<FastifyReply>()
-        const request = ctx.getRequest<Request>()
+        const request = ctx.getRequest<FastifyRequest>()
 
         const errResponse: ErrorResponse = {
             statusCode: 500,
@@ -34,7 +34,7 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
             errResponse.type = 'HttpException'
         } else if (exception instanceof QueryFailedError) { // from type orm
             errResponse.statusCode = 422
-            errResponse.message = exception.message.replaceAll('\n', '')
+            errResponse.message = exception.message.replaceAll('\n', ' ')
             errResponse.type = 'QueryFailedError'
         } else if (exception instanceof ValidationError) { // from class-validator
             errResponse.statusCode = HttpStatus.BAD_REQUEST;
@@ -50,8 +50,10 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
             errResponse.type = 'Others'
         }
 
-        response.status(errResponse.statusCode).send(errResponse);
+        response
+            .status(errResponse.statusCode)
+            .send(errResponse); // Fastify's way of sending a response
 
-        super.catch(exception, host)
+        super.catch(exception, host);
     }
 }
