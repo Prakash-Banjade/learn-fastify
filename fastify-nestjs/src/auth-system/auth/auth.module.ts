@@ -4,14 +4,16 @@ import { AuthService } from './auth.service';
 import { ImagesModule } from 'src/file-management/images/images.module';
 import { AccountsModule } from '../accounts/accounts.module';
 import { UsersModule } from '../users/users.module';
-import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
-import { LocalStrategy } from './strategies/local.strategy';
+import { AuthHelper } from './helpers/auth.helper';
 
 @Module({
   imports: [
-    PassportModule.register({ defaultStrategy: 'local' }),
-    JwtModule,
+    JwtModule.register({
+      global: true,
+      secret: process.env.ACCESS_TOKEN_SECRET!,
+      signOptions: { expiresIn: process.env.ACCESS_TOKEN_EXPIRATION_MS! },
+    }),
     AccountsModule,
     UsersModule,
     ImagesModule,
@@ -19,7 +21,7 @@ import { LocalStrategy } from './strategies/local.strategy';
   controllers: [AuthController],
   providers: [
     AuthService,
-    LocalStrategy,
+    AuthHelper,
   ]
 })
 export class AuthModule { }
