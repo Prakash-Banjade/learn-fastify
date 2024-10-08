@@ -1,4 +1,4 @@
-import { Inject, Injectable, Scope, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException, Scope, UnauthorizedException } from "@nestjs/common";
 import { Account } from "src/auth-system/accounts/entities/account.entity";
 import { MailService } from "src/mail/mail.service";
 import { generateOtp } from "src/utils/generateOPT";
@@ -12,6 +12,7 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { EmailVerificationDto } from "../dto/email-verification.dto";
 import * as bcrypt from 'bcrypt';
+import { EncryptionService } from "src/auth-system/encryption/encryption.service";
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthHelper extends BaseRepository {
@@ -21,13 +22,10 @@ export class AuthHelper extends BaseRepository {
         private readonly mailService: MailService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
+        private readonly encryptionService: EncryptionService,
     ) {
         super(datasource, req);
     }
-
-    private readonly algorithm = 'aes-256-cbc';
-    private readonly aes_key = Buffer.from(this.configService.get<string>('AES_KEY'), 'hex'); // 32 bytes key
-    private readonly aes_iv = Buffer.from(this.configService.get<string>('AES_IV'), 'hex'); // 16 bytes iv 
 
     private readonly emailVerificationPendingRepo = this.datasource.getRepository<EmailVerificationPending>(EmailVerificationPending)
     private readonly accountsRepo = this.datasource.getRepository<Account>(Account);
@@ -55,11 +53,11 @@ export class AuthHelper extends BaseRepository {
             }
         );
 
-        const encryptedVerificationToken = this.encrypt(verificationToken);
+        const encryptedVerificationToken = this.encryptionService.encrypt(verificationToken);
 
         const hashedVerificationToken = crypto
             .createHash('sha256')
-            .update(encryptedVerificationToken.encryptedData)
+            .update(encryptedVerificationToken)
             .digest('hex');
 
         // save the request to db
@@ -70,38 +68,51 @@ export class AuthHelper extends BaseRepository {
         });
         await this.emailVerificationPendingRepo.save(emailVerificationPending);
 
-        await this.mailService.sendConfirmationEmail(account, encryptedVerificationToken.encryptedData, otp);
+        await this.mailService.sendConfirmationEmail(account, encryptedVerificationToken, otp);
 
         return {
             message: "An OTP has been sent to your email. Please use the OTP to verify your account."
         }
     }
 
-    public encrypt(data: string) {
-        const cipher = crypto.createCipheriv(this.algorithm, this.aes_key, this.aes_iv); // Create cipher with algorithm, key, and IV
-        let encrypted = cipher.update(data, 'utf8', 'hex'); // Encrypt text
-        encrypted += cipher.final('hex'); // Finalize encryption
-        return { encryptedData: encrypted, iv: this.aes_iv.toString('hex'), key: this.aes_key.toString('hex') };
-    }
-
-    public decrypt(cipherText: string) {
-        const decipher = crypto.createDecipheriv(this.algorithm, this.aes_key, this.aes_iv); // Create decipher
-        let decrypted = decipher.update(cipherText, 'hex', 'utf8'); // Decrypt text
-        decrypted += decipher.final('utf8'); // Finalize decryption
-        return decrypted;
-    }
-
-    async verifyEmail(emailVerificationDto: EmailVerificationDto) {
+    async verifyEmail(emailVerificationDto: EmailVerificationDto): Promise<EmailVerificationPending> {
         const { otp, verificationToken } = emailVerificationDto;
 
-        const decryptedToken = this.decrypt(verificationToken);
+        let payload: { email: string };
+        try {
+            const decryptedToken = this.encryptionService.decrypt(verificationToken);
+            // verify jwt token
+            payload = await this.jwtService.verifyAsync(decryptedToken, {
+                secret: this.configService.get('ACCESS_TOKEN_VERIFICATION_SECRET'),
+            });
+        } catch {
+            throw new BadRequestException('Invalid token received')
+        }
 
-        // verify jwt token
-        const payload = await this.jwtService.verifyAsync(decryptedToken, {
-            secret: this.configService.get('ACCESS_TOKEN_VERIFICATION_SECRET'),
-        });
+        const foundRequest = await this.emailVerificationPendingRepo.findOneBy({ email: payload.email })
 
-        console.log(payload)
+        const verificationTokenHash = crypto
+            .createHash('sha256')
+            .update(verificationToken) // this is supposed to be encrypted token, if not, it's invalid
+            .digest('hex')
+
+        // comapre the token has with found request hash
+        if (verificationTokenHash !== foundRequest.hashedVerificationToken) throw new BadRequestException('Invalid token received')
+
+        // CHECK IF OTP IS VALID
+        const isOtpValid = bcrypt.compareSync(String(otp), foundRequest.otp);
+        if (!isOtpValid) throw new BadRequestException('Invalid OTP');
+
+        // check if otp has expired
+        const now = new Date();
+        const otpExpiration = new Date(foundRequest.createdAt);
+        otpExpiration.setMinutes(otpExpiration.getMinutes() + 30); // 30 minutes
+        if (now > otpExpiration) {
+            await this.emailVerificationPendingRepo.remove(foundRequest); // remove from database
+            throw new BadRequestException('OTP has expired');
+        }
+
+        return foundRequest;
     }
 
     async validateAccount(email: string, password: string): Promise<Account> {
