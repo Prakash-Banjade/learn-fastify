@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, InternalServerErrorException, Scope } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException, Scope } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Brackets, DataSource } from 'typeorm';
 import { REQUEST } from '@nestjs/core';
@@ -43,7 +43,7 @@ export class UsersService extends BaseRepository {
     return paginatedData(queryDto, queryBuilder);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<User> {
     const existing = await this.usersRepo.findOne({
       where: { id },
       relations: {
@@ -51,17 +51,28 @@ export class UsersService extends BaseRepository {
       },
       select: userSelectCols,
     })
-    if (!existing) throw new BadRequestException('User not found');
+    if (!existing) throw new NotFoundException('User not found');
 
     return existing;
   }
 
+  async getUserByAccountId(accountId: string): Promise<User> {
+    const user = await this.usersRepo.findOne({
+      where: {
+        account: { id: accountId }
+      }
+    })
+    if (!user) throw new NotFoundException('User not found')
+
+    return user;
+  }
+
   async myDetails(currentUser: AuthUser) {
-    return await this.findOne(currentUser.userId);
+    return await this.getUserByAccountId(currentUser.accountId);
   }
 
   async update(updateUserDto: UpdateUserDto, currentUser: AuthUser) {
-    const existingUser = await this.findOne(currentUser.userId);
+    const existingUser = await this.getUserByAccountId(currentUser.accountId);
     const existingAccount = await this.accountRepo.findOneBy({ id: currentUser.accountId });
     if (!existingAccount) throw new InternalServerErrorException('Unable to update the associated profile. Please contact support.');
 
