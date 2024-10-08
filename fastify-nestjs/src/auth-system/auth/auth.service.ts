@@ -12,7 +12,6 @@ import { REQUEST } from '@nestjs/core';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Account } from '../accounts/entities/account.entity';
 import { User } from '../users/entities/user.entity';
-import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthUser } from 'src/common/types/global.type';
@@ -46,18 +45,8 @@ export class AuthService extends BaseRepository {
   async login(signInDto: SignInDto, req: FastifyRequest, reply: FastifyReply) {
     const existingRefreshToken = req.cookies?.refresh_token;
 
-    const foundAccount = await this.accountsRepo.findOneBy({ email: signInDto.email });
-
-    if (!foundAccount) throw new UnauthorizedException('Invalid email. Proceed to sign up.');
-
-    if (!foundAccount.isVerified) return this.authHelper.sendConfirmationEmail(foundAccount);
-
-    const isPasswordValid = await bcrypt.compare(
-      signInDto.password,
-      foundAccount.password,
-    );
-
-    if (!isPasswordValid) throw new UnauthorizedException('Invalid password')
+    const foundAccount = await this.authHelper.validateAccount(signInDto.email, signInDto.password);
+    if (!foundAccount.isVerified) return await this.authHelper.sendConfirmationEmail(foundAccount);
 
     const payload: AuthUser = {
       email: foundAccount.email,
@@ -79,10 +68,6 @@ export class AuthService extends BaseRepository {
     await this.accountsRepo.save(foundAccount);
 
     return { access_token };
-  }
-
-  private async sendConfirmationEmail(account: Account) {
-
   }
 
   async createAccessToken(payload: AuthUser): Promise<string> {
@@ -111,18 +96,6 @@ export class AuthService extends BaseRepository {
     };
 
     return cookieOptions;
-  }
-
-  async validateAccount(email: string, password: string): Promise<Account> {
-    const account = await this.accountsRepo.findOneBy({ email });
-
-    if (!account || !account?.isVerified) throw new UnauthorizedException('Invalid email or the account is not verified')
-
-    const isPwdMatch = bcrypt.compareSync(password, account.password);
-
-    if (!isPwdMatch) throw new UnauthorizedException('Invalid password');
-
-    return account;
   }
 
   async register(registerDto: RegisterDto) {
