@@ -57,11 +57,14 @@ export class AuthService extends BaseRepository {
 
     foundAccount.refreshTokens = [...newRefreshTokenArray, refresh_token];
 
-    reply.setCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, refresh_token, this.jwtService.getCookieOptions(Tokens.REFRESH_TOKEN_COOKIE_NAME))
-
     await this.accountsRepo.save(foundAccount);
 
-    return { access_token };
+    return reply
+      .setCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, refresh_token, this.jwtService.getCookieOptions(Tokens.REFRESH_TOKEN_COOKIE_NAME))
+      .header('Content-Type', 'application/json')
+      .send({
+        access_token,
+      })
   }
 
   async verifyEmail(emailVerificationDto: EmailVerificationDto) {
