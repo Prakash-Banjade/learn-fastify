@@ -5,6 +5,10 @@ import { AllExceptionsFilter } from './common/filters/all-exception.filter';
 import { setupSwagger } from './config/swagger.config';
 import { ValidationPipe } from '@nestjs/common';
 import fastifyCookie from '@fastify/cookie';
+import { ConfigService } from '@nestjs/config';
+import fastifyHelmet from '@fastify/helmet';
+import fastifyCsrfProtection from '@fastify/csrf-protection';
+import fastifyCors from '@fastify/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -12,10 +16,23 @@ async function bootstrap() {
     new FastifyAdapter({}),
   );
 
+  const configService = app.get(ConfigService);
+
   app.register(fastifyCookie, {
-    secret: process.env.COOKIE_SECRET,
-    parseOptions: {},
-  })
+    secret: configService.get<string>('COOKIE_SECRET'),
+  });
+
+  app.register(fastifyHelmet);
+  app.register(fastifyCsrfProtection, { cookieOpts: { signed: true } });
+
+  app.register(fastifyCors, {
+    credentials: true,
+    origin: configService.get<string>('CLIENT_URL'),
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    optionsSuccessStatus: 200,
+    preflightContinue: false, // enforce CORS policy consistently across the application's endpoints.
+    methods: ['GET', 'POST', 'DELETE', 'PATCH'],
+  });
 
   // global exception filter
   const { httpAdapter } = app.get(HttpAdapterHost);
@@ -26,13 +43,13 @@ async function bootstrap() {
     transform: true,
     whitelist: true,
   }));
-  
+
   // swagger docs setup
   setupSwagger(app);
 
   app.setGlobalPrefix('api');
-  
-  await app.listen(3000, '0.0.0.0');
+
+  await app.listen(3001);
   console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
