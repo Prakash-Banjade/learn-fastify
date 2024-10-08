@@ -13,9 +13,9 @@ export class JwtService {
     ) { }
 
     private readonly ACCESS_TOKEN_SECRET = this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET');
-    private readonly ACCESS_TOKEN_EXPIRATION_MS = this.configService.getOrThrow<string>('ACCESS_TOKEN_EXPIRATION_MS');
+    private readonly ACCESS_TOKEN_EXPIRATION_MS = +this.configService.getOrThrow<number>('ACCESS_TOKEN_EXPIRATION_MS');
     private readonly REFRESH_TOKEN_SECRET = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
-    private readonly REFRESH_TOKEN_EXPIRATION_MS = this.configService.getOrThrow<string>('REFRESH_TOKEN_EXPIRATION_MS');
+    private readonly REFRESH_TOKEN_EXPIRATION_MS = +this.configService.getOrThrow<number>('REFRESH_TOKEN_EXPIRATION_MS');
 
     async createAccessToken(payload: AuthUser): Promise<string> {
         return await this.jwtService.signAsync(payload, {
@@ -44,9 +44,10 @@ export class JwtService {
     public getCookieOptions(tokenType: Tokens.ACCESS_TOKEN_COOKIE_NAME | Tokens.REFRESH_TOKEN_COOKIE_NAME): CookieSerializeOptions {
         const cookieOptions: CookieSerializeOptions = {
             httpOnly: true,
+            signed: true,
             secure: this.configService.getOrThrow('NODE_ENV') === 'production',
-            sameSite: 'strict',
-            maxAge: tokenType === Tokens.ACCESS_TOKEN_COOKIE_NAME ? Number(this.ACCESS_TOKEN_EXPIRATION_MS) : Number(this.REFRESH_TOKEN_EXPIRATION_MS),
+            sameSite: this.configService.getOrThrow('NODE_ENV') === 'production' ? 'none' : 'lax',
+            maxAge: tokenType === Tokens.ACCESS_TOKEN_COOKIE_NAME ? this.ACCESS_TOKEN_EXPIRATION_MS : 60 * 60 * 24,
         };
 
         return cookieOptions;
