@@ -21,6 +21,7 @@ import { MailService } from 'src/mail/mail.service';
 import { AuthHelper } from './helpers/auth.helper';
 import { JwtService } from '../jwt/jwt.service';
 import { EmailVerificationDto } from './dto/email-verification.dto';
+import { CookieSerializeOptions } from '@fastify/cookie';
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthService extends BaseRepository {
@@ -53,18 +54,29 @@ export class AuthService extends BaseRepository {
     const { access_token, refresh_token } = await this.jwtService.getAuthTokens(payload);
 
     const newRefreshTokenArray = !refresh_token ? (foundAccount.refreshTokens ?? []) : (foundAccount?.refreshTokens?.filter((rt) => rt !== existingRefreshToken) ?? [])
-    if (refresh_token) reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, this.jwtService.getCookieOptions(Tokens.REFRESH_TOKEN_COOKIE_NAME)); // CLEAR COOKIE, BCZ A NEW ONE IS TO BE GENERATED
+    if (refresh_token) reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, this.getRefreshCookieOptions()); // CLEAR COOKIE, BCZ A NEW ONE IS TO BE GENERATED
 
     foundAccount.refreshTokens = [...newRefreshTokenArray, refresh_token];
 
     await this.accountsRepo.save(foundAccount);
 
     return reply
-      .setCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, refresh_token, this.jwtService.getCookieOptions(Tokens.REFRESH_TOKEN_COOKIE_NAME))
+      .setCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, refresh_token, this.getRefreshCookieOptions())
       .header('Content-Type', 'application/json')
       .send({
         access_token,
       })
+  }
+
+  private getRefreshCookieOptions(): CookieSerializeOptions {
+    return {
+      secure: this.configService.get('NODE_ENV') === 'production',
+      httpOnly: true,
+      signed: true,
+      sameSite: this.configService.get('NODE_ENV') === 'production' ? 'none' : 'lax',
+      expires: new Date(Date.now() + parseInt(this.configService.getOrThrow('REFRESH_TOKEN_EXPIRATION_MS'))),
+      path: '/', // necessary to be able to access cookie from out of this route path context, like auth.guard.ts
+    }
   }
 
   async verifyEmail(emailVerificationDto: EmailVerificationDto) {
