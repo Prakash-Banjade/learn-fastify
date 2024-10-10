@@ -38,7 +38,8 @@ export class AuthGuard implements CanActivate {
 
             request['user'] = payload;
         } catch {
-            reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME).status(401).send({ message: 'Unauthorized' });
+            reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME)
+            throw new UnauthorizedException();
         }
         return true;
     }
