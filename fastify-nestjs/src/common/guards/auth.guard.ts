@@ -2,11 +2,17 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import { IS_PUBLIC_KEY } from "../decorators/setPublicRoute.decorator";
-import { FastifyRequest } from "fastify";
+import { FastifyReply, FastifyRequest } from "fastify";
+import { Tokens } from "../CONSTANTS";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-    constructor(private jwtService: JwtService, private reflector: Reflector) { }
+    constructor(
+        private jwtService: JwtService,
+        private reflector: Reflector,
+        private readonly configService: ConfigService,
+    ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -15,21 +21,24 @@ export class AuthGuard implements CanActivate {
         ]);
         if (isPublic) return true;
 
-        const request = context.switchToHttp().getRequest();
+        const request = context.switchToHttp().getRequest<FastifyRequest>();
+        const reply = context.switchToHttp().getResponse<FastifyReply>();
         const access_token = this.extractTokenFromHeader(request);
-        const refresh_token = request.cookies?.refresh_token;
-        if (!access_token) throw new UnauthorizedException();
+        const refresh_token = this.extractRefreshTokenFromRequest(request);
+
+        if (!access_token || !refresh_token) throw new UnauthorizedException();
         try {
             await this.jwtService.verifyAsync(refresh_token, {
-                secret: process.env.REFRESH_TOKEN_SECRET,
+                secret: this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET'),
             })
 
             const payload = await this.jwtService.verifyAsync(access_token, {
-                secret: process.env.ACCESS_TOKEN_SECRET,
+                secret: this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET'),
             });
+
             request['user'] = payload;
         } catch {
-            throw new UnauthorizedException();
+            reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME).status(401).send({ message: 'Unauthorized' });
         }
         return true;
     }
@@ -37,5 +46,21 @@ export class AuthGuard implements CanActivate {
     private extractTokenFromHeader(request: FastifyRequest): string | undefined {
         const [type, token] = request.headers.authorization?.split(' ') ?? [];
         return type === 'Bearer' ? token : undefined;
+    }
+
+    private extractRefreshTokenFromRequest(request: FastifyRequest): string | undefined {
+        const token: string | undefined = request.cookies[Tokens.REFRESH_TOKEN_COOKIE_NAME];
+
+        if (!token) {
+            throw new UnauthorizedException();
+        }
+
+        const { valid, value } = request.unsignCookie(token);
+
+        if (!valid) {
+            throw new UnauthorizedException();
+        }
+
+        return value;
     }
 }
