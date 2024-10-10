@@ -40,16 +40,4 @@ export class JwtService {
 
         return { access_token, refresh_token };
     }
-
-    public getCookieOptions(tokenType: Tokens.ACCESS_TOKEN_COOKIE_NAME | Tokens.REFRESH_TOKEN_COOKIE_NAME): CookieSerializeOptions {
-        const cookieOptions: CookieSerializeOptions = {
-            httpOnly: true,
-            signed: true,
-            secure: this.configService.getOrThrow('NODE_ENV') === 'production',
-            sameSite: this.configService.getOrThrow('NODE_ENV') === 'production' ? 'none' : 'lax',
-            maxAge: tokenType === Tokens.ACCESS_TOKEN_COOKIE_NAME ? this.ACCESS_TOKEN_EXPIRATION_MS : 60 * 60 * 24,
-        };
-
-        return cookieOptions;
-    }
 }
