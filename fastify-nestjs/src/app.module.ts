@@ -9,6 +9,7 @@ import { MemoryStoredFile, NestjsFormDataModule } from 'nestjs-form-data';
 import { MailModule } from './mail/mail.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AuthGuard } from './common/guards/auth.guard';
 
 @Module({
   imports: [
@@ -41,6 +42,10 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard, // global rate limiting, but can be overriden in route level
+    },
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard, // global auth guard
     },
   ],
 })

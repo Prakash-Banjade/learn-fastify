@@ -14,10 +14,6 @@ import { AuthGuard } from 'src/common/guards/auth.guard';
   ],
   providers: [
     JwtService,
-    {
-      provide: APP_GUARD,
-      useClass: AuthGuard, // global auth guard
-    },
   ],
   exports: [JwtService],
 })
