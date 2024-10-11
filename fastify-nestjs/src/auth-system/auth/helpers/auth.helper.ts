@@ -142,5 +142,45 @@ export class AuthHelper extends BaseRepository {
         return foundAccount;
     }
 
+    /**
+     * Generates a token pair [encrypted, hashedEncryptedToken] for the provided payload with the provided secret and expiration
+     * 
+     * @returns [encryptedToken, hashedEncryptedToken]
+     */
+    async getEncryptedHashTokenPair(payload: any, secret: string, expiration: number): Promise<[string, string]> {
+        const token = await this.jwtService.signAsync(
+            payload,
+            {
+                secret: this.configService.getOrThrow('EMAIL_VERIFICATION_SECRET'),
+                expiresIn: parseInt(this.configService.getOrThrow('EMAIL_VERIFICATION_EXPIRATION_SEC')),
+            }
+        );
 
+        const encryptedToken = this.encryptionService.encrypt(token);
+
+        const hashedToken = crypto
+            .createHash('sha256')
+            .update(encryptedToken)
+            .digest('hex');
+
+        return [encryptedToken, hashedToken];
+    }
+
+    async verifyEncryptedHashTokenPair<T>(encryptedToken: string, secret: string): Promise<{ payload: T; tokenHash: string } | null> {
+        const tokenHash = crypto
+            .createHash('sha256')
+            .update(encryptedToken)
+            .digest('hex');
+
+        try {
+            const decryptedToken = this.encryptionService.decrypt(encryptedToken);
+            const payload = await this.jwtService.verifyAsync(decryptedToken, { // verify if the jwt is valid
+                secret,
+            });
+
+            return { payload, tokenHash };
+        } catch (e) {
+            return null;
+        }
+    }
 }

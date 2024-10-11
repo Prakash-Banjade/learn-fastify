@@ -12,6 +12,8 @@ import { RefreshTokenGuard } from 'src/common/guards/refresh-token.guard';
 import { ChangePasswordDto } from './dto/changePassword.dto';
 import { CurrentUser } from 'src/common/decorators/user.decorator';
 import { AuthUser } from 'src/common/types/global.type';
+import { PasswordChangeRequestDto } from './dto/password-change-req.dto';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -76,5 +78,24 @@ export class AuthController {
     @FormDataRequest()
     changePassword(@Body() changePasswordDto: ChangePasswordDto, @CurrentUser() currentUser: AuthUser) {
         return this.authService.changePassword(changePasswordDto, currentUser);
+    }
+
+
+    @Public()
+    @Post('forgot-password')
+    @HttpCode(HttpStatus.OK)
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
+    forgotPassword(@Body() { email }: PasswordChangeRequestDto) {
+        return this.authService.forgotPassword(email)
+    }
+
+    @Public()
+    @Post('reset-password')
+    @HttpCode(HttpStatus.OK)
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
+    resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+        return this.authService.resetPassword(resetPasswordDto);
     }
 }

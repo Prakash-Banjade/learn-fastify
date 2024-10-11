@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   HttpStatus,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   Scope,
   UnauthorizedException,
@@ -28,7 +30,7 @@ import { EmailVerificationDto } from './dto/email-verification.dto';
 import { CookieSerializeOptions } from '@fastify/cookie';
 import { ChangePasswordDto } from './dto/changePassword.dto';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
+import { ResetPasswordDto } from './dto/resetPassword.dto';
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthService extends BaseRepository {
@@ -189,6 +191,7 @@ export class AuthService extends BaseRepository {
 
     account.password = changePasswordDto.newPassword;
     account.prevPasswords.push(bcrypt.hashSync(changePasswordDto.newPassword, PASSWORD_SALT_COUNT));
+    account.passwordUpdatedAt = new Date();
 
     // maintain prev passwords of size MAX_PREV_PASSWORDS
     if (account.prevPasswords?.length > MAX_PREV_PASSWORDS) {
@@ -202,16 +205,15 @@ export class AuthService extends BaseRepository {
     }
   }
 
-
-  async forgetPassword(email: string) {
+  async forgotPassword(email: string) {
     const foundAccount = await this.accountsRepo.findOneBy({ email });
     if (!foundAccount) throw new NotFoundException('Account not found');
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const hashedResetToken = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
+    const [resetToken, hashedResetToken] = await this.authHelper.getEncryptedHashTokenPair(
+      { email: foundAccount.email },
+      this.configService.getOrThrow('FORGOT_PASSWORD_SECRET'),
+      this.configService.getOrThrow('FORGOT_PASSWORD_EXPIRATION_SEC')
+    )
 
     // existing request
     let changeRequest: PasswordChangeRequest;
@@ -233,7 +235,58 @@ export class AuthService extends BaseRepository {
     await this.mailService.sendResetPasswordLink(foundAccount, resetToken);
 
     return {
-      message: 'Token is valid for 5 minutes',
+      message: `Token is valid for ${Number(this.configService.getOrThrow('FORGOT_PASSWORD_EXPIRATION_SEC')) / 60} minutes`,
     };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { token: providedResetToken, password } = resetPasswordDto;
+
+    // hash the provided token to check in database
+    const result = await this.authHelper.verifyEncryptedHashTokenPair<{ email: string }>(providedResetToken, this.configService.getOrThrow('FORGOT_PASSWORD_SECRET'));
+    if (!result || !result?.payload || !result?.tokenHash || !result?.payload?.email) throw new BadRequestException('Invalid reset token');
+
+    const { payload, tokenHash } = result;
+
+    // Retrieve the hashed reset token from the database
+    const passwordChangeRequest = await this.passwordChangeRequestRepo.findOneBy({ hashedResetToken: tokenHash, email: payload.email });
+
+    if (!passwordChangeRequest) throw new NotFoundException('Invalid reset token');
+
+    // Check if the reset token has expired
+    const now = new Date();
+    const resetTokenExpiration = new Date(passwordChangeRequest.createdAt);
+    resetTokenExpiration.setSeconds(resetTokenExpiration.getSeconds() + parseInt(this.configService.getOrThrow('FORGOT_PASSWORD_EXPIRATION_SEC')));
+    if (now > resetTokenExpiration) {
+      await this.passwordChangeRequestRepo.remove(passwordChangeRequest);
+      throw new BadRequestException('Reset token has expired');
+    }
+
+    // retrieve the user from the database
+    const account = await this.accountsRepo.findOneBy({ email: passwordChangeRequest.email });
+    if (!account) throw new InternalServerErrorException('The requested Account was not available in the database.');
+
+    // check if the new password is one of the last MAX_PREV_PASSWORDS passwords
+    for (const prevPassword of account.prevPasswords) {
+      const isMatch = await bcrypt.compare(password, prevPassword);
+      if (isMatch) throw new ForbiddenException(`New password cannot be one of the last ${MAX_PREV_PASSWORDS} passwords`)
+    }
+
+    account.password = password;
+    account.prevPasswords.push(bcrypt.hashSync(password, PASSWORD_SALT_COUNT));
+    account.passwordUpdatedAt = new Date();
+
+    // maintain prev passwords of size MAX_PREV_PASSWORDS
+    if (account.prevPasswords?.length > MAX_PREV_PASSWORDS) {
+      account.prevPasswords.shift(); // remove the oldest one, index [0]
+    }
+
+    await this.accountsRepo.save(account);
+
+    // clear the reset token from the database
+    await this.passwordChangeRequestRepo.remove(passwordChangeRequest);
+
+    // Return success response
+    return { message: 'Password reset successful' };
   }
 }
