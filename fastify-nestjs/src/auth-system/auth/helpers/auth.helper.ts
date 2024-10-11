@@ -122,6 +122,11 @@ export class AuthHelper extends BaseRepository {
         return foundRequest;
     }
 
+    /**
+     * Returns Account object if credentials are valid
+     * 
+     * Note: Doesn't check if the account is verified
+     */
     async validateAccount(email: string, password: string): Promise<Account> {
         const foundAccount = await this.accountsRepo.findOneBy({ email });
 
