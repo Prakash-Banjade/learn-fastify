@@ -5,6 +5,7 @@ import { BaseEntity } from "src/common/entities/base.entity";
 import { AuthProvider, Role } from "src/common/types/global.type";
 import { User } from "src/auth-system/users/entities/user.entity";
 import { Image } from "src/file-management/images/entities/image.entity";
+import { BCRYPT_HASH, EMAIL_REGEX } from "src/common/CONSTANTS";
 
 @Entity()
 export class Account extends BaseEntity {
@@ -40,10 +41,11 @@ export class Account extends BaseEntity {
     images: Image[];
 
     @BeforeInsert()
+    @BeforeUpdate()
     hashPassword() {
         if (!this.password) throw new BadRequestException('Password required');
 
-        this.password = bcrypt.hashSync(this.password, 10);
+        if (!BCRYPT_HASH.test(this.password)) this.password = bcrypt.hashSync(this.password, 10);
     }
 
     @BeforeInsert()
@@ -51,9 +53,7 @@ export class Account extends BaseEntity {
     validateEmail() {
         if (!this.email) throw new BadRequestException('Email required');
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-        if (!emailRegex.test(this.email)) throw new BadRequestException('Invalid email');
+        if (!EMAIL_REGEX.test(this.email)) throw new BadRequestException('Invalid email');
     }
 
 }
