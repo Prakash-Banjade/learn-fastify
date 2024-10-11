@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpStatus,
   Inject,
   Injectable,
@@ -17,7 +18,7 @@ import { Account } from '../accounts/entities/account.entity';
 import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
 import { AuthUser } from 'src/common/types/global.type';
-import { Tokens } from 'src/common/CONSTANTS';
+import { MAX_PREV_PASSWORDS, Tokens } from 'src/common/CONSTANTS';
 import { RegisterDto } from './dto/register.dto';
 import { SignInDto } from './dto/signIn.dto';
 import { MailService } from 'src/mail/mail.service';
@@ -25,6 +26,8 @@ import { AuthHelper } from './helpers/auth.helper';
 import { JwtService } from '../jwt/jwt.service';
 import { EmailVerificationDto } from './dto/email-verification.dto';
 import { CookieSerializeOptions } from '@fastify/cookie';
+import { ChangePasswordDto } from './dto/changePassword.dto';
+import * as bcrypt from 'bcrypt'
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthService extends BaseRepository {
@@ -171,5 +174,30 @@ export class AuthService extends BaseRepository {
     await this.accountsRepo.save(account);
 
     return reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, this.getRefreshCookieOptions()).status(HttpStatus.NO_CONTENT).send();
+  }
+
+  async changePassword(changePasswordDto: ChangePasswordDto, currentUser: AuthUser) {
+    const account = await this.authHelper.validateAccount(currentUser.email, changePasswordDto.oldPassword);
+    if (!account.isVerified) throw new ForbiddenException();
+
+    // check if the new password is
+    for (const prevPassword of account.prevPasswords) {
+      const isMatch = await bcrypt.compare(changePasswordDto.newPassword, prevPassword);
+      if (isMatch) throw new ForbiddenException(`New password cannot be one of the last ${MAX_PREV_PASSWORDS} passwords`)
+    }
+
+    account.password = changePasswordDto.newPassword;
+    account.prevPasswords.push(bcrypt.hashSync(changePasswordDto.newPassword, 10));
+
+    // maintain prev passwords of size MAX_PREV_PASSWORDS
+    if (account.prevPasswords?.length > MAX_PREV_PASSWORDS) {
+      account.prevPasswords.shift(); // remove the oldest one, index [0]
+    }
+
+    await this.accountsRepo.save(account);
+
+    return {
+      message: "Password changed"
+    }
   }
 }

@@ -9,6 +9,9 @@ import { Public } from 'src/common/decorators/setPublicRoute.decorator';
 import { TransactionInterceptor } from 'src/common/interceptors/transaction.interceptor';
 import { FormDataRequest } from 'nestjs-form-data';
 import { RefreshTokenGuard } from 'src/common/guards/refresh-token.guard';
+import { ChangePasswordDto } from './dto/changePassword.dto';
+import { CurrentUser } from 'src/common/decorators/user.decorator';
+import { AuthUser } from 'src/common/types/global.type';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -67,4 +70,11 @@ export class AuthController {
         return this.authService.logout(req, res);
     }
 
+    @Post('change-password')
+    @HttpCode(HttpStatus.OK)
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
+    changePassword(@Body() changePasswordDto: ChangePasswordDto, @CurrentUser() currentUser: AuthUser) {
+        return this.authService.changePassword(changePasswordDto, currentUser);
+    }
 }
