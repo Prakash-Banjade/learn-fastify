@@ -1,5 +1,6 @@
 import { BeforeInsert, BeforeUpdate, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 import * as bcrypt from 'bcrypt'
+import { PASSWORD_SALT_COUNT } from "src/common/CONSTANTS";
 
 @Entity()
 export class EmailVerificationPending {
@@ -27,6 +28,6 @@ export class EmailVerificationPending {
     @BeforeInsert()
     @BeforeUpdate()
     hashOtp() {
-        this.otp = bcrypt.hashSync(this.otp, 10);
+        this.otp = bcrypt.hashSync(this.otp, PASSWORD_SALT_COUNT);
     }
 }

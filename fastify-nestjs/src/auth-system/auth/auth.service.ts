@@ -18,7 +18,7 @@ import { Account } from '../accounts/entities/account.entity';
 import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
 import { AuthUser } from 'src/common/types/global.type';
-import { MAX_PREV_PASSWORDS, Tokens } from 'src/common/CONSTANTS';
+import { MAX_PREV_PASSWORDS, PASSWORD_SALT_COUNT, Tokens } from 'src/common/CONSTANTS';
 import { RegisterDto } from './dto/register.dto';
 import { SignInDto } from './dto/signIn.dto';
 import { MailService } from 'src/mail/mail.service';
@@ -187,7 +187,7 @@ export class AuthService extends BaseRepository {
     }
 
     account.password = changePasswordDto.newPassword;
-    account.prevPasswords.push(bcrypt.hashSync(changePasswordDto.newPassword, 10));
+    account.prevPasswords.push(bcrypt.hashSync(changePasswordDto.newPassword, PASSWORD_SALT_COUNT));
 
     // maintain prev passwords of size MAX_PREV_PASSWORDS
     if (account.prevPasswords?.length > MAX_PREV_PASSWORDS) {

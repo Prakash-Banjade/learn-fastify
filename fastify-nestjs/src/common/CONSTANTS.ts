@@ -10,4 +10,6 @@ export const BCRYPT_HASH = /^\$2[aby]?\$[0-9]{2}\$[./A-Za-z0-9]{53}$/;
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const MAX_PREV_PASSWORDS = 3;
+export const MAX_PREV_PASSWORDS = 3 as const;
+
+export const PASSWORD_SALT_COUNT = 10 as const;

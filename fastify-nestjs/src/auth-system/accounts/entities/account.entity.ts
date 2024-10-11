@@ -5,7 +5,7 @@ import { BaseEntity } from "src/common/entities/base.entity";
 import { AuthProvider, Role } from "src/common/types/global.type";
 import { User } from "src/auth-system/users/entities/user.entity";
 import { Image } from "src/file-management/images/entities/image.entity";
-import { BCRYPT_HASH, EMAIL_REGEX } from "src/common/CONSTANTS";
+import { BCRYPT_HASH, EMAIL_REGEX, PASSWORD_SALT_COUNT } from "src/common/CONSTANTS";
 
 @Entity()
 export class Account extends BaseEntity {
@@ -51,7 +51,7 @@ export class Account extends BaseEntity {
     hashPassword() {
         if (!this.password) throw new BadRequestException('Password required');
 
-        if (!BCRYPT_HASH.test(this.password)) this.password = bcrypt.hashSync(this.password, 10);
+        if (!BCRYPT_HASH.test(this.password)) this.password = bcrypt.hashSync(this.password, PASSWORD_SALT_COUNT);
     }
 
     @BeforeInsert()
