@@ -40,16 +40,12 @@ export class AuthHelper extends BaseRepository {
      * 5. Send the encrypted token to the user's email
      */
     async sendConfirmationEmail(account: Account) {
-        // check for existing verification pending, if yes, remove
-        const existingVerificationRequest = await this.emailVerificationPendingRepo.findOneBy({ email: account.email });
-        if (existingVerificationRequest) await this.emailVerificationPendingRepo.remove(existingVerificationRequest);
-
         const otp = generateOtp();
         const verificationToken = await this.jwtService.signAsync(
             { email: account.email },
             {
-                secret: this.configService.get('ACCESS_TOKEN_VERIFICATION_SECRET'),
-                expiresIn: '30m',
+                secret: this.configService.getOrThrow('EMAIL_VERIFICATION_SECRET'),
+                expiresIn: parseInt(this.configService.getOrThrow('EMAIL_VERIFICATION_EXPIRATION_SEC')),
             }
         );
 
@@ -60,13 +56,24 @@ export class AuthHelper extends BaseRepository {
             .update(encryptedVerificationToken)
             .digest('hex');
 
-        // save the request to db
-        const emailVerificationPending = this.emailVerificationPendingRepo.create({
-            email: account.email,
-            otp: String(otp), // opt is saved as hash in db, logic is implemented in email-verification-pending.entity.ts
-            hashedVerificationToken,
-        });
-        await this.emailVerificationPendingRepo.save(emailVerificationPending);
+        // check for existing verification pending, if yes, remove
+        const existingVerificationRequest = await this.emailVerificationPendingRepo.findOneBy({ email: account.email });
+
+        if (existingVerificationRequest) { // update the existing one
+            Object.assign(existingVerificationRequest, {
+                otp: String(otp),  // opt is saved as hash in db, logic is implemented in email-verification-pending.entity.ts
+                hashedVerificationToken,
+            })
+
+            await this.emailVerificationPendingRepo.save(existingVerificationRequest);
+        } else { // create new one
+            const emailVerificationPending = this.emailVerificationPendingRepo.create({
+                email: account.email,
+                otp: String(otp),
+                hashedVerificationToken,
+            });
+            await this.emailVerificationPendingRepo.save(emailVerificationPending);
+        }
 
         await this.mailService.sendConfirmationEmail(account, encryptedVerificationToken, otp);
 
@@ -83,7 +90,7 @@ export class AuthHelper extends BaseRepository {
             const decryptedToken = this.encryptionService.decrypt(verificationToken);
             // verify jwt token
             payload = await this.jwtService.verifyAsync(decryptedToken, {
-                secret: this.configService.get('ACCESS_TOKEN_VERIFICATION_SECRET'),
+                secret: this.configService.get('EMAIL_VERIFICATION_SECRET'),
             });
         } catch {
             throw new BadRequestException('Invalid token received')
@@ -97,7 +104,7 @@ export class AuthHelper extends BaseRepository {
             .digest('hex')
 
         // comapre the token has with found request hash
-        if (verificationTokenHash !== foundRequest.hashedVerificationToken) throw new BadRequestException('Invalid token received')
+        if (verificationTokenHash !== foundRequest.hashedVerificationToken) throw new BadRequestException('Invalid token received');
 
         // CHECK IF OTP IS VALID
         const isOtpValid = bcrypt.compareSync(String(otp), foundRequest.otp);
@@ -106,7 +113,7 @@ export class AuthHelper extends BaseRepository {
         // check if otp has expired
         const now = new Date();
         const otpExpiration = new Date(foundRequest.createdAt);
-        otpExpiration.setMinutes(otpExpiration.getMinutes() + 30); // 30 minutes
+        otpExpiration.setSeconds(otpExpiration.getSeconds() + this.configService.getOrThrow('EMAIL_VERIFICATION_EXPIRATION_SEC'));
         if (now > otpExpiration) {
             await this.emailVerificationPendingRepo.remove(foundRequest); // remove from database
             throw new BadRequestException('OTP has expired');

@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -107,8 +108,28 @@ export class AuthService extends BaseRepository {
   }
 
   async register(registerDto: RegisterDto) {
-    const account = this.accountsRepo.create(registerDto);
-    return await this.accountsRepo.save(account);
+    const foundAccount = await this.accountsRepo.findOneBy({
+      email: registerDto.email,
+    });
+
+    if (foundAccount && foundAccount.isVerified) throw new ConflictException('User with this email already exists');
+
+    // handle if the account is not verified
+    if (foundAccount && !foundAccount.isVerified) {
+      Object.assign(foundAccount, {
+        ...registerDto,
+      })
+
+      await this.accountsRepo.save(foundAccount);
+
+      return await this.authHelper.sendConfirmationEmail(foundAccount);
+    }
+
+    // create new account
+    const newAccount = this.accountsRepo.create(registerDto);
+    await this.accountsRepo.save(newAccount);
+
+    return await this.authHelper.sendConfirmationEmail(newAccount);
   }
 
 
