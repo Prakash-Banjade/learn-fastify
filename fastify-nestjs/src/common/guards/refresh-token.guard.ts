@@ -1,31 +1,36 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import { FastifyRequest } from "fastify";
+import { FastifyReply, FastifyRequest } from "fastify";
+import { Tokens } from "../CONSTANTS";
 
 @Injectable()
 export class RefreshTokenGuard implements CanActivate {
-    constructor(private jwtService: JwtService, private reflector: Reflector) { }
+    constructor(
+        private jwtService: JwtService,
+        private readonly configService: ConfigService,
+    ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        const request = context.switchToHttp().getRequest();
-        const refresh_token = this.extractTokenFromHeader(request);
+        const request = context.switchToHttp().getRequest<FastifyRequest>();
+        const reply = context.switchToHttp().getResponse<FastifyReply>();
+        const refresh_token = request.cookies?.[Tokens.REFRESH_TOKEN_COOKIE_NAME];
+        if (!refresh_token) throw new ForbiddenException();
 
-        if (!refresh_token) throw new UnauthorizedException();
+        const { valid, value: refreshCookieValue } = request.unsignCookie(refresh_token);
+
+        if (!valid) throw new ForbiddenException();
+
         try {
-            await this.jwtService.verifyAsync(refresh_token, {
-                secret: process.env.REFRESH_TOKEN_SECRET,
+            const { accountId } = await this.jwtService.verifyAsync(refreshCookieValue, {
+                secret: this.configService.getOrThrow('REFRESH_TOKEN_SECRET'),
             })
 
-            request.cookies.refresh_token = refresh_token;
+            request.accountId = accountId;
         } catch {
+            reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME)
             throw new UnauthorizedException();
         }
         return true;
-    }
-
-    private extractTokenFromHeader(request: FastifyRequest): string | undefined {
-        const [type, token] = request.headers.authorization?.split(' ') ?? [];
-        return type === 'Refresh' ? token : undefined;
     }
 }

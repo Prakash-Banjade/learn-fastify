@@ -1,12 +1,14 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Request, Res, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { RegisterDto } from './dto/register.dto';
 import { SignInDto } from './dto/signIn.dto';
 import { EmailVerificationDto } from './dto/email-verification.dto';
 import { Public } from 'src/common/decorators/setPublicRoute.decorator';
 import { TransactionInterceptor } from 'src/common/interceptors/transaction.interceptor';
+import { FormDataRequest } from 'nestjs-form-data';
+import { RefreshTokenGuard } from 'src/common/guards/refresh-token.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -17,18 +19,31 @@ export class AuthController {
     @Post('login')
     @UseInterceptors(TransactionInterceptor)
     @HttpCode(HttpStatus.OK)
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
     async login(
         @Body() signInDto: SignInDto,
-        @Request() request: FastifyRequest,
+        @Req() request: FastifyRequest,
         @Res({ passthrough: true }) response: FastifyReply,
     ) {
         return this.authService.login(signInDto, request, response);
     }
 
     @Public()
+    @Post('refresh')
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
+    @HttpCode(HttpStatus.OK)
+    @UseGuards(RefreshTokenGuard)
+    async refresh(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
+        return this.authService.refresh(req, res);
+    }
+
+    @Public()
     @Post('register')
     @UseInterceptors(TransactionInterceptor)
-    @HttpCode(HttpStatus.CREATED)
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
     async register(@Body() registerDto: RegisterDto) {
         return this.authService.register(registerDto);
     }
@@ -37,6 +52,8 @@ export class AuthController {
     @Post('verify-email')
     @UseInterceptors(TransactionInterceptor)
     @HttpCode(HttpStatus.OK)
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
     async verifyEmail(@Body() emailVerificationDto: EmailVerificationDto) {
         return await this.authService.verifyEmail(emailVerificationDto);
     }

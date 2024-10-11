@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService as JwtSer } from '@nestjs/jwt';
 import { Tokens } from 'src/common/CONSTANTS';
 import { AuthUser } from 'src/common/types/global.type';
+import { Account } from '../accounts/entities/account.entity';
 
 @Injectable()
 export class JwtService {
@@ -34,7 +35,13 @@ export class JwtService {
         );
     }
 
-    async getAuthTokens(payload: AuthUser) {
+    async getAuthTokens(account: Account) {
+        const payload: AuthUser = {
+            email: account.email,
+            accountId: account.id,
+            role: account.role,
+        };
+
         const access_token = await this.createAccessToken(payload);
         const refresh_token = await this.createRefreshToken(payload);
 

@@ -46,13 +46,7 @@ export class AuthService extends BaseRepository {
     const foundAccount = await this.authHelper.validateAccount(signInDto.email, signInDto.password);
     if (!foundAccount.isVerified) return await this.authHelper.sendConfirmationEmail(foundAccount);
 
-    const payload: AuthUser = {
-      email: foundAccount.email,
-      accountId: foundAccount.id,
-      role: foundAccount.role,
-    };
-
-    const { access_token, refresh_token } = await this.jwtService.getAuthTokens(payload);
+    const { access_token, refresh_token } = await this.jwtService.getAuthTokens(foundAccount);
 
     const newRefreshTokenArray = !refresh_token ? (foundAccount.refreshTokens ?? []) : (foundAccount?.refreshTokens?.filter((rt) => rt !== existingRefreshToken) ?? [])
     if (refresh_token) reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, this.getRefreshCookieOptions()); // CLEAR COOKIE, BCZ A NEW ONE IS TO BE GENERATED
@@ -132,5 +126,23 @@ export class AuthService extends BaseRepository {
     return await this.authHelper.sendConfirmationEmail(newAccount);
   }
 
+  async refresh(req: FastifyRequest, reply: FastifyReply) {
+    reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, this.getRefreshCookieOptions()); // a new refresh token is to be generated
 
+    const account = await this.accountsRepo.findOneBy({ id: req.accountId }); // accountId is validated in the refresh token guard
+
+    const newRefreshTokenArray = account.refreshTokens?.filter((rt) => rt !== req.cookies.refresh_token);
+    account.refreshTokens = newRefreshTokenArray;
+
+    await this.accountsRepo.save(account);
+
+    const { access_token, refresh_token } = await this.jwtService.getAuthTokens(account);
+
+    return reply
+      .setCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, refresh_token, this.getRefreshCookieOptions())
+      .header('Content-Type', 'application/json')
+      .send({
+        access_token,
+      })
+  }
 }
