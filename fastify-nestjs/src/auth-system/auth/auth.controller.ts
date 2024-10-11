@@ -100,7 +100,6 @@ export class AuthController {
         return this.authService.resetPassword(resetPasswordDto);
     }
 
-    @Public()
     @Post('update-email')
     @HttpCode(HttpStatus.OK)
     @ApiConsumes('multipart/form-data')
