@@ -1,4 +1,4 @@
-import { BeforeInsert, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { BeforeInsert, BeforeUpdate, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 import * as bcrypt from 'bcrypt'
 
 @Entity()
@@ -19,11 +19,13 @@ export class EmailVerificationPending {
     createdAt: Date;
 
     @BeforeInsert()
+    @BeforeUpdate()
     setCreatedAt() {
         this.createdAt = new Date();
     }
 
     @BeforeInsert()
+    @BeforeUpdate()
     hashOtp() {
         this.otp = bcrypt.hashSync(this.otp, 10);
     }
