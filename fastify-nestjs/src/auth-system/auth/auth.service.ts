@@ -75,7 +75,7 @@ export class AuthService extends BaseRepository {
       httpOnly: true,
       signed: true,
       sameSite: this.configService.get('NODE_ENV') === 'production' ? 'none' : 'lax',
-      expires: new Date(Date.now() + parseInt(this.configService.getOrThrow('REFRESH_TOKEN_EXPIRATION_MS'))),
+      expires: new Date(Date.now() + (parseInt(this.configService.getOrThrow('REFRESH_TOKEN_EXPIRATION_SEC')) * 1000)),
       path: '/', // necessary to be able to access cookie from out of this route path context, like auth.guard.ts
     }
   }

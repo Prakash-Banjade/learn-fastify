@@ -13,14 +13,14 @@ export class JwtService {
     ) { }
 
     private readonly ACCESS_TOKEN_SECRET = this.configService.getOrThrow<string>('ACCESS_TOKEN_SECRET');
-    private readonly ACCESS_TOKEN_EXPIRATION_MS = +this.configService.getOrThrow<number>('ACCESS_TOKEN_EXPIRATION_MS');
+    private readonly ACCESS_TOKEN_EXPIRATION_SEC = +this.configService.getOrThrow<number>('ACCESS_TOKEN_EXPIRATION_SEC');
     private readonly REFRESH_TOKEN_SECRET = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
-    private readonly REFRESH_TOKEN_EXPIRATION_MS = +this.configService.getOrThrow<number>('REFRESH_TOKEN_EXPIRATION_MS');
+    private readonly REFRESH_TOKEN_EXPIRATION_SEC = +this.configService.getOrThrow<number>('REFRESH_TOKEN_EXPIRATION_SEC');
 
     async createAccessToken(payload: AuthUser): Promise<string> {
         return await this.jwtService.signAsync(payload, {
             secret: this.ACCESS_TOKEN_SECRET,
-            expiresIn: this.ACCESS_TOKEN_EXPIRATION_MS,
+            expiresIn: this.ACCESS_TOKEN_EXPIRATION_SEC,
         });
     }
 
@@ -29,7 +29,7 @@ export class JwtService {
             { accountId: payload.accountId },
             {
                 secret: this.REFRESH_TOKEN_SECRET,
-                expiresIn: this.REFRESH_TOKEN_EXPIRATION_MS,
+                expiresIn: this.REFRESH_TOKEN_EXPIRATION_SEC,
             },
         );
     }
