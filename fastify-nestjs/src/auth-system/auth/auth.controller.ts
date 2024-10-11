@@ -24,7 +24,7 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     @ApiConsumes('multipart/form-data')
     @FormDataRequest()
-    async login(
+    login(
         @Body() signInDto: SignInDto,
         @Req() request: FastifyRequest,
         @Res({ passthrough: true }) response: FastifyReply,
@@ -38,7 +38,7 @@ export class AuthController {
     @FormDataRequest()
     @HttpCode(HttpStatus.OK)
     @UseGuards(RefreshTokenGuard)
-    async refresh(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
+    refresh(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
         return this.authService.refresh(req, res);
     }
 
@@ -47,7 +47,7 @@ export class AuthController {
     @UseInterceptors(TransactionInterceptor)
     @ApiConsumes('multipart/form-data')
     @FormDataRequest()
-    async register(@Body() registerDto: RegisterDto) {
+    register(@Body() registerDto: RegisterDto) {
         return this.authService.register(registerDto);
     }
 
@@ -57,8 +57,8 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     @ApiConsumes('multipart/form-data')
     @FormDataRequest()
-    async verifyEmail(@Body() emailVerificationDto: EmailVerificationDto) {
-        return await this.authService.verifyEmail(emailVerificationDto);
+    verifyEmail(@Body() emailVerificationDto: EmailVerificationDto) {
+        return this.authService.verifyEmail(emailVerificationDto);
     }
 
     @Post('logout')
@@ -66,7 +66,7 @@ export class AuthController {
     @ApiConsumes('multipart/form-data')
     @FormDataRequest()
     @UseGuards(RefreshTokenGuard)
-    async logout(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
+    logout(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
         return this.authService.logout(req, res);
     }
 
