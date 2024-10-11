@@ -31,6 +31,7 @@ import { CookieSerializeOptions } from '@fastify/cookie';
 import { ChangePasswordDto } from './dto/changePassword.dto';
 import * as bcrypt from 'bcrypt';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
+import { UpdateEmailDto } from './dto/update-email.dto';
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthService extends BaseRepository {
@@ -288,5 +289,21 @@ export class AuthService extends BaseRepository {
 
     // Return success response
     return { message: 'Password reset successful' };
+  }
+
+  async updateEmail(updateEmailDto: UpdateEmailDto, currentUser: AuthUser) {
+    const account = await this.accountsRepo.findOneBy({ id: currentUser.accountId });
+    if (!account) throw new InternalServerErrorException('Unable to update the associated profile. Please contact support.');
+
+    const isPasswordMatch = await bcrypt.compare(updateEmailDto.password, account.password);
+    if (!isPasswordMatch) throw new UnauthorizedException('Invalid password');
+
+    account.email = updateEmailDto.newEmail;
+
+    await this.accountsRepo.save(account);
+
+    return {
+      message: 'Email updated'
+    }
   }
 }

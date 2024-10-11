@@ -14,6 +14,7 @@ import { CurrentUser } from 'src/common/decorators/user.decorator';
 import { AuthUser } from 'src/common/types/global.type';
 import { PasswordChangeRequestDto } from './dto/password-change-req.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
+import { UpdateEmailDto } from './dto/update-email.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -97,5 +98,14 @@ export class AuthController {
     @FormDataRequest()
     resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
         return this.authService.resetPassword(resetPasswordDto);
+    }
+
+    @Public()
+    @Post('update-email')
+    @HttpCode(HttpStatus.OK)
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
+    updateEmail(@Body() updateEmailDto: UpdateEmailDto, @CurrentUser() currentUser: AuthUser) {
+        return this.authService.updateEmail(updateEmailDto, currentUser);
     }
 }
