@@ -27,7 +27,8 @@ import { JwtService } from '../jwt/jwt.service';
 import { EmailVerificationDto } from './dto/email-verification.dto';
 import { CookieSerializeOptions } from '@fastify/cookie';
 import { ChangePasswordDto } from './dto/changePassword.dto';
-import * as bcrypt from 'bcrypt'
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable({ scope: Scope.REQUEST })
 export class AuthService extends BaseRepository {
@@ -199,5 +200,40 @@ export class AuthService extends BaseRepository {
     return {
       message: "Password changed"
     }
+  }
+
+
+  async forgetPassword(email: string) {
+    const foundAccount = await this.accountsRepo.findOneBy({ email });
+    if (!foundAccount) throw new NotFoundException('Account not found');
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedResetToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+
+    // existing request
+    let changeRequest: PasswordChangeRequest;
+    const existingRequest = await this.passwordChangeRequestRepo.findOneBy({ email });
+    if (existingRequest) {
+      existingRequest.hashedResetToken = hashedResetToken;
+      changeRequest = existingRequest;
+    } else {
+      const passwordChangeRequest = this.passwordChangeRequestRepo.create({
+        email: foundAccount.email,
+        hashedResetToken,
+      });
+      changeRequest = passwordChangeRequest;
+    }
+
+    await this.passwordChangeRequestRepo.save(changeRequest);
+
+    // send reset password link
+    await this.mailService.sendResetPasswordLink(foundAccount, resetToken);
+
+    return {
+      message: 'Token is valid for 5 minutes',
+    };
   }
 }

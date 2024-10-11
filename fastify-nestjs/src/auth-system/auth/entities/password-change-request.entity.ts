@@ -1,4 +1,4 @@
-import { BeforeInsert, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { BeforeInsert, BeforeUpdate, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class PasswordChangeRequest {
@@ -15,6 +15,7 @@ export class PasswordChangeRequest {
     createdAt: Date;
 
     @BeforeInsert()
+    @BeforeUpdate()
     setCreatedAt() {
         this.createdAt = new Date();
     }

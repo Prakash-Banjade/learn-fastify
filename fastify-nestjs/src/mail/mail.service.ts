@@ -68,7 +68,7 @@ export class MailService {
         this.sendEmail(email, subject, html, 'A new confirmation email was sent.');
     }
 
-    public async sendResetPasswordEmail(account: Account, token: string) {
+    public async sendResetPasswordLink(account: Account, token: string) {
         const { email, firstName, lastName } = account;
         const subject = 'Reset your password';
         const html = this.templates.resetPassword({
@@ -79,7 +79,7 @@ export class MailService {
             email,
             subject,
             html,
-            'A new reset password email was sent.',
+            'A new reset password link was sent.',
         );
     }
 }
