@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  HttpStatus,
   Inject,
   Injectable,
   NotFoundException,
@@ -156,5 +157,19 @@ export class AuthService extends BaseRepository {
       .send({
         access_token,
       })
+  }
+
+  async logout(req: FastifyRequest, reply: FastifyReply) {
+    const refreshToken = req.unsignCookie(req.cookies[Tokens.REFRESH_TOKEN_COOKIE_NAME])?.value; // validated from refreshtoken guard
+
+    const account = await this.accountsRepo.findOneBy({ id: req.accountId, refreshTokens: Like(`%${refreshToken}%`) });
+    if (!account) throw new UnauthorizedException('Invalid refresh token');
+
+    const newRefreshTokenArray = account.refreshTokens?.filter((rt) => rt !== refreshToken);
+    account.refreshTokens = newRefreshTokenArray;
+
+    await this.accountsRepo.save(account);
+
+    return reply.clearCookie(Tokens.REFRESH_TOKEN_COOKIE_NAME, this.getRefreshCookieOptions()).status(HttpStatus.NO_CONTENT).send();
   }
 }

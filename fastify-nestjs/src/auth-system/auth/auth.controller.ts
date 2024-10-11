@@ -58,4 +58,14 @@ export class AuthController {
         return await this.authService.verifyEmail(emailVerificationDto);
     }
 
+    @Public()
+    @Post('logout')
+    @HttpCode(HttpStatus.OK)
+    @ApiConsumes('multipart/form-data')
+    @FormDataRequest()
+    @UseGuards(RefreshTokenGuard)
+    async logout(@Req() req: FastifyRequest, @Res({ passthrough: true }) res: FastifyReply) {
+        return this.authService.logout(req, res);
+    }
+
 }
