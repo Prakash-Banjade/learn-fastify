@@ -60,7 +60,11 @@ export class UsersService extends BaseRepository {
     const user = await this.usersRepo.findOne({
       where: {
         account: { id: accountId }
-      }
+      },
+      relations: {
+        account: true
+      },
+      select: userSelectCols,
     })
     if (!user) throw new NotFoundException('User not found')
 
