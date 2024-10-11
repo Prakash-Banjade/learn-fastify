@@ -58,7 +58,6 @@ export class AuthController {
         return await this.authService.verifyEmail(emailVerificationDto);
     }
 
-    @Public()
     @Post('logout')
     @HttpCode(HttpStatus.OK)
     @ApiConsumes('multipart/form-data')
